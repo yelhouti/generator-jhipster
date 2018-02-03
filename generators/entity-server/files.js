@@ -142,6 +142,25 @@ const serverFiles = {
                     renameTo: generator => `${generator.packageFolder}/service/mapper/${generator.entityClass}Mapper.java`
                 }
             ]
+        },
+        {
+            //TODO fix condition
+            condition: generator => true,
+            path: SERVER_MAIN_SRC_DIR,
+            templates: [
+                {
+                    file: 'package/service/permissions/_EntityPermissions.java',
+                    renameTo: generator => `${generator.packageFolder}/service/permissions/${generator.entityClass}Permissions.java`
+                },
+                {
+                    file: 'package/service/permissions/_IPermissionConfig.java',
+                    renameTo: generator => `${generator.packageFolder}/service/permissions/IPermissionConfig.java`
+                },
+                {
+                    file: 'package/service/permissions/_Permission.java',
+                    renameTo: generator => `${generator.packageFolder}/service/permissions/Permission.java`
+                }
+            ]
         }
     ],
     test: [

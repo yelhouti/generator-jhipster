@@ -48,6 +48,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 <%_ } _%>
 import org.springframework.http.ResponseEntity;
+<% const roles=true%>
+<% if (roles) { %>import org.springframework.security.access.prepost.PreAuthorize;<% } %>
 import org.springframework.web.bind.annotation.*;
 <% if (validation) { %>
 import javax.validation.Valid;<% } %>
@@ -86,6 +88,7 @@ public class <%= entityClass %>Resource {
      * @return the ResponseEntity with status 201 (Created) and with body the new <%= instanceName %>, or with status 400 (Bad Request) if the <%= entityInstance %> has already an ID
      * @throws URISyntaxException if the Location URI syntax is incorrect
      */
+    <% if (roles) { %>@PreAuthorize("hasAuthority('<%=entityClass.toUpperCase()%>_CREATE')") <% }%>
     @PostMapping("/<%= entityApiUrl %>")
     @Timed
     public ResponseEntity<<%= instanceType %>> create<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
@@ -107,6 +110,7 @@ public class <%= entityClass %>Resource {
      * or with status 500 (Internal Server Error) if the <%= instanceName %> couldn't be updated
      * @throws URISyntaxException if the Location URI syntax is incorrect
      */
+    <% if (roles) { %>@PreAuthorize("hasAuthority('<%=entityClass.toUpperCase()%>_UPDATE')") <% }%>
     @PutMapping("/<%= entityApiUrl %>")
     @Timed
     public ResponseEntity<<%= instanceType %>> update<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
@@ -127,6 +131,7 @@ public class <%= entityClass %>Resource {
      * @param filter the filter of the request<% } %>
      * @return the ResponseEntity with status 200 (OK) and the list of <%= entityInstancePlural %> in body
      */
+    <% if (roles) { %>@PreAuthorize("hasAuthority('<%=entityClass.toUpperCase()%>_READ')") <% }%>
     @GetMapping("/<%= entityApiUrl %>")
     @Timed<%- include('../../common/get_all_template', {viaService: viaService}); -%>
 
@@ -136,6 +141,7 @@ public class <%= entityClass %>Resource {
      * @param id the id of the <%= instanceName %> to retrieve
      * @return the ResponseEntity with status 200 (OK) and with body the <%= instanceName %>, or with status 404 (Not Found)
      */
+    <% if (roles) { %>@PreAuthorize("hasAuthority('<%=entityClass.toUpperCase()%>_READ')") <% }%>
     @GetMapping("/<%= entityApiUrl %>/{id}")
     @Timed
     public ResponseEntity<<%= instanceType %>> get<%= entityClass %>(@PathVariable <%= pkType %> id) {
@@ -149,6 +155,7 @@ public class <%= entityClass %>Resource {
      * @param id the id of the <%= instanceName %> to delete
      * @return the ResponseEntity with status 200 (OK)
      */
+    <% if (roles) { %>@PreAuthorize("hasAuthority('<%=entityClass.toUpperCase()%>_DELETE')") <% }%>
     @DeleteMapping("/<%= entityApiUrl %>/{id}")
     @Timed
     public ResponseEntity<Void> delete<%= entityClass %>(@PathVariable <%= pkType %> id) {
