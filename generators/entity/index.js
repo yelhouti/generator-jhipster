@@ -387,6 +387,7 @@ module.exports = class extends BaseGenerator {
                 this.data.fluentMethods = context.fluentMethods;
                 this.data.relationships = context.relationships;
                 this.data.fields = context.fields;
+                this.data.id = context.id;
                 this.data.changelogDate = context.changelogDate;
                 this.data.dto = context.dto;
                 this.data.service = context.service;
@@ -670,7 +671,6 @@ module.exports = class extends BaseGenerator {
                     }
                     context.differentRelationships[entityType].push(relationship);
                 });
-
                 context.pkType = this.getPkType(context.databaseType);
             },
 

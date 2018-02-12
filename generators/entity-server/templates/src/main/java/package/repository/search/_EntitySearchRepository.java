@@ -19,6 +19,9 @@
 package <%=packageName%>.repository.search;
 
 import <%=packageName%>.domain.<%=entityClass%>;
+<%_ if(typeof id !== 'undefined'){ _%>
+import <%=packageName%>.domain.<%=entityClass%>Id;
+<%_ } _%>
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;<% if (databaseType === 'cassandra') { %>
 
 import java.util.UUID;<% } %>
@@ -26,5 +29,5 @@ import java.util.UUID;<% } %>
 /**
  * Spring Data Elasticsearch repository for the <%=entityClass%> entity.
  */
-public interface <%=entityClass%>SearchRepository extends ElasticsearchRepository<<%=entityClass%>, <% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %>> {
+public interface <%=entityClass%>SearchRepository extends ElasticsearchRepository<<%=entityClass%>, <% if (databaseType === 'sql') { %><%=pkType%><% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %>> {
 }

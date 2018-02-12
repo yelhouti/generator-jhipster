@@ -24,6 +24,9 @@ import <%=packageName%>.service.dto.<%= entityClass %>DTO;
 <%_ } else { _%>
 import <%=packageName%>.domain.<%= entityClass %>;
 <%_ } _%>
+<%_ if(typeof id !== 'undefined'){ _%>
+import <%=packageName%>.domain.<%=entityClass%>Id;
+<%_ } _%>
 <%_ if (pagination !== 'no') { _%>
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +34,7 @@ import org.springframework.data.domain.Pageable;
 <%_ if (pagination === 'no' || fieldsContainNoOwnerOneToOne === true) { _%>
 import java.util.List;
 <%_ } _%>
+<% idClass=(typeof id==='undefined')?pkType:(entityClass+"Id") %>
 
 /**
  * Service Interface for managing <%= entityClass %>.
@@ -67,14 +71,14 @@ public interface <%= entityClass %>Service {
      * @param id the id of the entity
      * @return the entity
      */
-    <%= instanceType %> findOne(<%= pkType %> id);
+    <%= instanceType %> findOne(<%= idClass %> id);
 
     /**
      * Delete the "id" <%= entityInstance %>.
      *
      * @param id the id of the entity
      */
-    void delete(<%= pkType %> id);<% if (searchEngine === 'elasticsearch') { %>
+    void delete(<%= idClass %> id);<% if (searchEngine === 'elasticsearch') { %>
 
     /**
      * Search for the <%= entityInstance %> corresponding to the query.

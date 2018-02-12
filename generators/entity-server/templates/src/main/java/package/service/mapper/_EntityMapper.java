@@ -80,7 +80,7 @@ _%>
     <%_ } _%>
     <%_ if(databaseType === 'sql') { _%>
 
-    default <%= entityClass %> fromId(Long id) {
+    default <%= entityClass %> fromId(<%= (typeof id === 'undefined')?'Long':(entityClass+'Id') %> id) {
         if (id == null) {
             return null;
         }

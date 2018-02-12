@@ -27,9 +27,13 @@ package <%=packageName%>.service<% if (service === 'serviceImpl') { %>.impl<% } 
     const entityToDtoReference = mapper + '::'+ 'toDto';
     const repository = entityInstance  + 'Repository';
     const searchRepository = entityInstance  + 'SearchRepository';
+    const idClass=(typeof id==='undefined')?pkType:(entityClass+"Id")
     if (service === 'serviceImpl') { %>
 import <%=packageName%>.service.<%= entityClass %>Service;<% } %>
 import <%=packageName%>.domain.<%= entityClass %>;
+<%_ if(typeof id !== 'undefined'){ _%>
+import <%=packageName%>.domain.<%=entityClass%>Id;
+<%_ } _%>
 import <%=packageName%>.repository.<%= entityClass %>Repository;<% if (searchEngine === 'elasticsearch') { %>
 import <%=packageName%>.repository.search.<%= entityClass %>SearchRepository;<% } if (dto === 'mapstruct') { %>
 import <%=packageName%>.service.dto.<%= entityClass %>DTO;
@@ -112,7 +116,7 @@ public class <%= serviceClassName %><% if (service === 'serviceImpl') { %> imple
     <%_ if (databaseType === 'sql') { _%>
     @Transactional(readOnly = true)
     <%_ } _%>
-    public <%= instanceType %> findOne(<%= pkType %> id) {
+    public <%= instanceType %> findOne(<%= idClass %> id) {
         log.debug("Request to get <%= entityClass %> : {}", id);<%- include('../../common/get_template', {viaService: viaService, returnDirectly:true}); -%>
     }
 
@@ -124,7 +128,7 @@ public class <%= serviceClassName %><% if (service === 'serviceImpl') { %> imple
     <%_ if (service === 'serviceImpl') { _%>
     @Override
     <%_ } _%>
-    public void delete(<%= pkType %> id) {
+    public void delete(<%= idClass %> id) {
         log.debug("Request to delete <%= entityClass %> : {}", id);<%- include('../../common/delete_template', {viaService: viaService}); -%>
     }
     <%_ if (searchEngine === 'elasticsearch') { _%>

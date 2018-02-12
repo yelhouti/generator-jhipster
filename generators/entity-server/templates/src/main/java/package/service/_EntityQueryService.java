@@ -111,9 +111,11 @@ public class <%= serviceClassName %> extends QueryService<<%= entityClass %>> {
     private Specifications<<%= entityClass %>> createSpecification(<%= criteria %> criteria) {
         Specifications<<%= entityClass %>> specification = Specifications.where(null);
         if (criteria != null) {
+            <%_ if(typeof id === 'undefined'){ _%>
             if (criteria.getId() != null) {
                 specification = specification.and(buildSpecification(criteria.getId(), <%= entityClass %>_.id));
             }
+            <%_ } _%>
             <%_
             fields.forEach((field) => {
                 if (isFilterableType(field.fieldType)) { _%>

@@ -115,6 +115,17 @@ public class <%= entityClass %> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 <% if (databaseType === 'sql') { %>
+    <%_ if (typeof id !== 'undefined') { _%>
+    @EmbeddedId
+    @AttributeOverrides({
+        <%_
+        for (idx in id) {
+        _%>
+        @AttributeOverride(name = "<%= id[idx].attributeName %>", column = @Column(name = "<%= id[idx].columnName %>", nullable = false))<%= idx==(id.length-1)?'':',' %>
+        <%_ } _%>
+    })
+    private <%= entityClass %>Id id;
+    <%_ } else { _%>
     @Id
     <%_ if (prodDatabaseType === 'mysql' || prodDatabaseType === 'mariadb') { _%>
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -123,6 +134,7 @@ public class <%= entityClass %> implements Serializable {
     @SequenceGenerator(name = "sequenceGenerator")
     <%_ } _%>
     private Long id;
+    <%_ } _%>
 <% } if (databaseType === 'couchbase') { %>
     public static final String PREFIX = "<%= entityInstance.toLowerCase() %>";
 
@@ -273,11 +285,16 @@ public class <%= entityClass %> implements Serializable {
     <%_ }
     } _%>
     // jhipster-needle-entity-add-field - JHipster will add fields here, do not remove
-    public <% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %> getId() {
+    <%_
+    if (databaseType === 'sql') { idType=(typeof id !== "undefined")?(entityClass+"Id"):"Long" }
+    else if (databaseType === 'mongodb' || databaseType === 'couchbase') { idType="String" }
+    else if (databaseType === 'cassandra') { idType="UUID" }
+    _%>
+    public <%= idType %> getId() {
         return id;
     }
 
-    public void setId(<% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %> id) {
+    public void setId(<%= idType %> id) {
         this.id = id;
     }
 <%_ for (idx in fields) {

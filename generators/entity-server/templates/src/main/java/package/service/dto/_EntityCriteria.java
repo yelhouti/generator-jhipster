@@ -22,7 +22,10 @@ import io.github.jhipster.service.filter.ZonedDateTimeFilter;<% } %>
 
 <%_
   const referenceFilterType = '' + pkType + 'Filter';
-  var filterVariables = [{name:'id', type: pkType, filterType:referenceFilterType,fieldInJavaBeanMethod:'Id' } ];
+    var filterVariables = [];
+    if (typeof id === 'undefined') {
+      filterVariables = [{name:'id', type: pkType, filterType:referenceFilterType,fieldInJavaBeanMethod:'Id' } ];
+    }
   var extraFilters = {};
   fields.forEach((field) => {
     const fieldType = field.fieldType;

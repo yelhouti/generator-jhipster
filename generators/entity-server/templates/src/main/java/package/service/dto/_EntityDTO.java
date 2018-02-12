@@ -39,10 +39,13 @@ import <%=packageName%>.domain.enumeration.<%= fields[idx].fieldType %>;
  * A DTO for the <%= entityClass %> entity.
  */
 public class <%= entityClass %>DTO implements Serializable {
-<% if (databaseType === 'sql') { %>
+<%_ if(typeof id === 'undefined'){ _%>
+    <% if (databaseType === 'sql') { %>
     private Long id;<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>
     private String id;<% } %><% if (databaseType === 'cassandra') { %>
-    private UUID id;<% } %>
+    private UUID id;
+    <% } %>
+<%_ } _%>
     <%_ for (idx in fields) {
         const fieldValidate = fields[idx].fieldValidate;
         const fieldValidateRules = fields[idx].fieldValidateRules;
@@ -94,7 +97,7 @@ public class <%= entityClass %>DTO implements Serializable {
 
     private String <%= relationshipFieldName %><%= otherEntityFieldCapitalized %>;
     <%_ } } } _%>
-
+    <%_ if(typeof id === 'undefined'){ _%>
     public <% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %> getId() {
         return id;
     }
@@ -102,6 +105,7 @@ public class <%= entityClass %>DTO implements Serializable {
     public void setId(<% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %> id) {
         this.id = id;
     }
+    <%_ } _%>
     <%_ for (idx in fields) {
         const fieldType = fields[idx].fieldType;
         const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
@@ -195,21 +199,39 @@ public class <%= entityClass %>DTO implements Serializable {
         }
 
         <%= entityClass %>DTO <%= entityInstance %>DTO = (<%= entityClass %>DTO) o;
+        <%_ if(typeof id === 'undefined'){ _%>
         if(<%= entityInstance %>DTO.getId() == null || getId() == null) {
             return false;
         }
         return Objects.equals(getId(), <%= entityInstance %>DTO.getId());
+        <%_ } else { _%>
+        <%_ for (idx in id) { _%>
+            <% if(idx==0){ %>return <% }else{ %>    && <% } %>Objects.equals(<%= id[idx].attributeName %>, <%= entityInstance %>DTO.<%= id[idx].attributeName %>)
+        <%_ } _%>
+            ;
+        <%_ } _%>
+
     }
 
     @Override
     public int hashCode() {
+        <%_ if(typeof id === 'undefined'){ _%>
         return Objects.hashCode(getId());
+        <%_ } else { _%>
+        int result = 17;
+        <%_ for (idx in id) { _%>
+        result = 31 * result + <%= id[idx].attributeName %>.hashCode();
+        <%_ } _%>
+        return result;
+        <%_ } _%>
     }
 
     @Override
     public String toString() {
         return "<%= entityClass %>DTO{" +
+<%_ if(typeof id === 'undefined'){ _%>
             "id=" + getId() +
+<%_ } _%>
             <%_ for (idx in fields) {
                 const fieldName = fields[idx].fieldName;
                 const fieldType = fields[idx].fieldType;

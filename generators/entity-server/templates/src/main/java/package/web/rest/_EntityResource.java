@@ -22,6 +22,9 @@ import com.codahale.metrics.annotation.Timed;
 <%_ if (dto !== 'mapstruct' || service === 'no') { _%>
 import <%=packageName%>.domain.<%= entityClass %>;
 <%_ } _%>
+<%_ if(typeof id !== 'undefined'){ _%>
+import <%=packageName%>.domain.<%=entityClass%>Id;
+<%_ } _%>
 <%_ if (service !== 'no') { _%>
 import <%=packageName%>.service.<%= entityClass %>Service;<% } else { %>
 import <%=packageName%>.repository.<%= entityClass %>Repository;<% if (searchEngine === 'elasticsearch') { %>
@@ -63,6 +66,39 @@ import java.util.stream.Collectors;<% } %><% if (searchEngine === 'elasticsearch
 import java.util.stream.StreamSupport;<% } %><% if (searchEngine === 'elasticsearch') { %>
 
 import static org.elasticsearch.index.query.QueryBuilders.*;<% } %>
+<%_
+// attribute types to id Field (should be put in json?)
+for (idx in id) {
+    let field = fields.find(f=>id[idx].attributeName==f.fieldName);
+    if(field != undefined){
+        id[idx].type=field.fieldType;
+        if (field.fieldType.toLowerCase() === 'boolean') {
+            id[idx].getter="is";
+        } else {
+            id[idx].getter="get";
+        }
+    }else{
+        id[idx].type="Long";
+        id[idx].getter="get";
+    }
+    id[idx].getter+=id[idx].attributeName.charAt(0).toUpperCase() + id[idx].attributeName.slice(1)+ "()";
+}
+let idPath="";
+let pathVariable="";
+let idParams="";
+if(typeof id !== 'undefined'){
+    for(idx in id){
+        idPath+=("/{"+id[idx].attributeName+"}");
+        pathVariable+=('@PathVariable '+id[idx].type+' '+id[idx].attributeName+', ');
+        idParams+=(id[idx].attributeName+", ");
+    }
+    pathVariable=pathVariable.slice(0,-2)
+    idParams=idParams.slice(0,-2)
+} else {
+    idPath="/{id}";
+    pathVariable="@PathVariable "+pkType+" id";
+}
+_%>
 
 /**
  * REST controller for managing <%= entityClass %>.
@@ -75,6 +111,7 @@ public class <%= entityClass %>Resource {
 
     private static final String ENTITY_NAME = "<%= entityInstance %>";
     <%_
+    const idInstanceName = entityInstance + "Id";
     const instanceType = (dto === 'mapstruct') ? entityClass + 'DTO' : entityClass;
     const instanceName = (dto === 'mapstruct') ? entityInstance + 'DTO' : entityInstance;
     _%><%- include('../../common/inject_template', {viaService: viaService, constructorName: entityClass + 'Resource', queryService: jpaMetamodelFiltering}); -%>
@@ -90,11 +127,23 @@ public class <%= entityClass %>Resource {
     @Timed
     public ResponseEntity<<%= instanceType %>> create<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
         log.debug("REST request to save <%= entityClass %> : {}", <%= instanceName %>);
+        <%_ if (typeof id === 'undefined') { _%>
         if (<%= instanceName %>.getId() != null) {
             throw new BadRequestAlertException("A new <%= entityInstance %> cannot already have an ID", ENTITY_NAME, "idexists");
-        }<%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
-        return ResponseEntity.created(new URI("/api/<%= entityApiUrl %>/" + result.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(ENTITY_NAME, result.getId().toString()))
+        }<%_ } _%><%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
+        <%_
+        if (typeof id === 'undefined') {
+            path='"/"+result.getId().toString()'
+        } else {
+            path='';
+            for (idx in id) {
+                path+='"/"+result.'+id[idx].getter+"+";
+            }
+            path=path.slice(0, -1);
+        }
+        _%>
+        return ResponseEntity.created(new URI("/api/<%= entityApiUrl %>" + <%- path -%>))
+            .headers(HeaderUtil.createEntityCreationAlert(ENTITY_NAME, <%- path -%>))
             .body(result);
     }
 
@@ -111,11 +160,23 @@ public class <%= entityClass %>Resource {
     @Timed
     public ResponseEntity<<%= instanceType %>> update<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
         log.debug("REST request to update <%= entityClass %> : {}", <%= instanceName %>);
+        <%_ if (typeof id === 'undefined') { _%>
         if (<%= instanceName %>.getId() == null) {
             return create<%= entityClass %>(<%= instanceName %>);
-        }<%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
+        }<%_ } _%><%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
+                <%_
+        if (typeof id === 'undefined') {
+            path='"/"+'+instanceName+'.getId().toString()'
+        } else {
+            path='';
+            for (idx in id) {
+                path+='"/"+'+instanceName+'.'+id[idx].getter+"+";
+            }
+            path=path.slice(0, -1);
+        }
+        _%>
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(ENTITY_NAME, <%= instanceName %>.getId().toString()))
+            .headers(HeaderUtil.createEntityUpdateAlert(ENTITY_NAME, <%- path -%>))
             .body(result);
     }
 
@@ -133,12 +194,21 @@ public class <%= entityClass %>Resource {
     /**
      * GET  /<%= entityApiUrl %>/:id : get the "id" <%= entityInstance %>.
      *
+<%_ if(typeof id === 'undefined'){ _%>
      * @param id the id of the <%= instanceName %> to retrieve
+<%_ } else {_%>
+    <%_ for (idx in id) { _%>
+     * @param <%= id[idx].attributeName %> the <%= id[idx].attributeName %> of the <%= instanceName %> to retrieve
+    <%_ } _%>
+<%_ } _%>
      * @return the ResponseEntity with status 200 (OK) and with body the <%= instanceName %>, or with status 404 (Not Found)
      */
-    @GetMapping("/<%= entityApiUrl %>/{id}")
+    @GetMapping("/<%= entityApiUrl %><%= idPath %>")
     @Timed
-    public ResponseEntity<<%= instanceType %>> get<%= entityClass %>(@PathVariable <%= pkType %> id) {
+    public ResponseEntity<<%= instanceType %>> get<%= entityClass %>(<%= pathVariable %>) {
+<%_ if(typeof id !== 'undefined'){ _%>
+        <%= entityClass %>Id id = new <%= entityClass %>Id(<%= idParams %>);
+<%_ } _%>
         log.debug("REST request to get <%= entityClass %> : {}", id);<%- include('../../common/get_template', {viaService: viaService, returnDirectly:false}); -%>
         return ResponseUtil.wrapOrNotFound(Optional.ofNullable(<%= instanceName %>));
     }
@@ -146,12 +216,21 @@ public class <%= entityClass %>Resource {
     /**
      * DELETE  /<%= entityApiUrl %>/:id : delete the "id" <%= entityInstance %>.
      *
-     * @param id the id of the <%= instanceName %> to delete
+<%_ if(typeof id === 'undefined'){ _%>
+     * @param id the id of the <%= instanceName %> to retrieve
+<%_ } else {_%>
+    <%_ for (idx in id) { _%>
+     * @param <%= id[idx].attributeName %> the <%= id[idx].attributeName %> of the <%= instanceName %> to retrieve
+    <%_ } _%>
+<%_ } _%>
      * @return the ResponseEntity with status 200 (OK)
      */
-    @DeleteMapping("/<%= entityApiUrl %>/{id}")
+    @DeleteMapping("/<%= entityApiUrl %><%= idPath %>")
     @Timed
-    public ResponseEntity<Void> delete<%= entityClass %>(@PathVariable <%= pkType %> id) {
+    public ResponseEntity<Void> delete<%= entityClass %>(<%= pathVariable %>) {
+<%_ if(typeof id !== 'undefined'){ _%>
+        <%= entityClass %>Id id = new <%= entityClass %>Id(<%= idParams %>);
+<%_ } _%>
         log.debug("REST request to delete <%= entityClass %> : {}", id);<%- include('../../common/delete_template', {viaService: viaService}); -%>
         return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert(ENTITY_NAME, id<% if (pkType !== 'String') { %>.toString()<% } %>)).build();
     }<% if (searchEngine === 'elasticsearch') { %>
