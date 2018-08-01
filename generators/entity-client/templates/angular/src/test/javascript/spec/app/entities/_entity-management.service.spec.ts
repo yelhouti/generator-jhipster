@@ -17,7 +17,24 @@
  limitations under the License.
 -%>
 <%_
-const tsKeyId = generateTestEntityId(pkType, prodDatabaseType);
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
+tsKeyId = (primaryKeyCount === 0)?generateTestEntityId(pkType, prodDatabaseType):generateTestEntityIds(idFields.map(f=>f.fieldType)).join(", ");
 _%>
 /* tslint:disable max-line-length */
 import { TestBed, getTestBed } from '@angular/core/testing';
@@ -55,17 +72,34 @@ describe('Service Tests', () => {
 
                 const req  = httpMock.expectOne({ method: 'GET' });
 
-                const resourceUrl = SERVER_API_URL + '<% if (applicationType === 'gateway' && locals.microserviceName) { %>/<%= microserviceName.toLowerCase() %>/<% } %>api/<%= entityApiUrl %>';
+                const resourceUrl = SERVER_API_URL + '<% if (applicationType === 'gateway' && locals.microserviceName) { %><%= microserviceName.toLowerCase() %>/<% } %>api/<%= entityApiUrl %>';
+            <%_ if(primaryKeyCount === 0){ _%>
                 expect(req.request.url).toEqual(resourceUrl + '/' + <%- tsKeyId %>);
+            <%_ } else { _%>
+                expect(req.request.url).toEqual(resourceUrl + '/' + '<%- idFields.map((f,i)=>((i+1)*11)).join(",") %>');
+            <%_ } _%>
             });
             it('should return <%= entityAngularName %>', () => {
 
-                service.find(<%- tsKeyId %>).subscribe((received) => {
-                    expect(received.body.id).toEqual(<%- tsKeyId %>);
+                service.find(<%- tsKeyId -%>).subscribe((received) => {
+                    <%_ if(primaryKeyCount === 0){ _%>
+                        expect(received.body.id).toEqual(<%- tsKeyId -%>);
+                    <%_ } else {
+                        idFields.forEach((f, i) => { _%>
+                            expect(received.body.<%= f.fieldName %>).toEqual(<%= (i+1)*11 %>);
+                        <%_ });
+                    } _%>
                 });
 
                 const req = httpMock.expectOne({ method: 'GET' });
-                req.flush({id: <%- tsKeyId %>});
+                <%_ if(primaryKeyCount === 0){ _%>
+                    req.flush({id: <%- tsKeyId %>});
+                <%_ } else {
+                    let object=idFields
+                        .map((f, index)=>f.fieldName+": "+((f.fieldType==='String')?("'"+((index+1)*11)+"'"):((index+1)*11))).join(", ") _%>
+                    _%>
+                    req.flush({<%- object %>});
+                <%_ } _%>
             });
 
             it('should propagate not found response', () => {

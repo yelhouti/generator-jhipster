@@ -16,9 +16,28 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        field.displayName = relationships[idx].relationshipFieldName + relationships[idx].otherEntityFieldCapitalized
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        let field=Object.assign({}, fields[idx], {displayName: fields[idx].fieldName})
+        idFields.push(field);
+    }
+}
+_%>
 <% const keyPrefix = angularAppName + '.' + entityTranslationKey; %>
 <div *ngIf="<%= entityInstance %>">
-    <h2><span jhiTranslate="<%= keyPrefix %>.detail.title"><%= entityClassHumanized %></span> {{<%= entityInstance %>.id}}</h2>
+    <h2><span jhiTranslate="<%= keyPrefix %>.detail.title"><%= entityClassHumanized %></span> <%= (primaryKeyCount > 0)?('('+idFields.map(f=>'{{'+entityInstance+'.'+f.displayName+'}}').join('/'))+')':('{{'+entityInstance+'.id}}') %></h2>
     <hr>
     <<%= jhiPrefixDashed %>-alert-error></<%= jhiPrefixDashed %>-alert-error>
     <dl class="row-md jh-entity-details">
@@ -108,7 +127,11 @@
     </button>
 
     <button type="button"
+        <%_ if(primaryKeyCount===0) { _%>
             [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%= entityInstance %>.id + '/edit'} }]"
+        <%_ } else { _%>
+            [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%- idFields.map(f=>entityInstance +"."+f.fieldName).join(" + '/' + ") -%> + '/edit'} }]"
+        <%_ } _%>
             replaceUrl="true"
             queryParamsHandling="merge"
             class="btn btn-primary">

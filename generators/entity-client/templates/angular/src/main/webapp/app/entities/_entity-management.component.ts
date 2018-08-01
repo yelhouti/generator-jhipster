@@ -16,6 +16,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpResponse, HttpErrorResponse } from '@angular/common/http';
 <%_ if (pagination === 'pagination' || pagination === 'pager') { _%>
@@ -55,7 +72,11 @@ export class <%= entityAngularName %>Component implements OnInit, OnDestroy {
     }
 
     trackId(index: number, item: <%= entityAngularName %>) {
+        <%_ if(primaryKeyCount === 0){ _%>
         return item.id;
+        <%_ } else { _%>
+        return <%- idFields.map(f=>'item.'+f.fieldName).join(" + ',' + ") -%>;
+        <%_} _%>
     }
     <%_ if (fieldsContainBlob) { _%>
 

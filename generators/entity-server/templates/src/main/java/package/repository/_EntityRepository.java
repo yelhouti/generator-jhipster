@@ -19,7 +19,7 @@
 package <%=packageName%>.repository;
 
 import <%=packageName%>.domain.<%=entityClass%>;
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
 import <%=packageName%>.domain.<%=entityClass%>Id;
 <%_ } _%>
 import org.springframework.stereotype.Repository;
@@ -71,7 +71,7 @@ import java.util.UUID;<% } %>
 <%_ } if (databaseType === 'sql' || databaseType === 'mongodb' || databaseType === 'couchbase') { _%>
 @SuppressWarnings("unused")
 @Repository
-public interface <%=entityClass%>Repository extends <% if (databaseType === 'sql') { %>JpaRepository<% } %><% if (databaseType === 'mongodb') { %>MongoRepository<% } %><% if (databaseType === 'couchbase') { %>N1qlCouchbaseRepository<% } %><<%=entityClass%>, <%= (typeof id==='undefined')?pkType:(entityClass+"Id") %>><% if (jpaMetamodelFiltering) { %>, JpaSpecificationExecutor<<%=entityClass%>><% } %> {
+public interface <%=entityClass%>Repository extends <% if (databaseType === 'sql') { %>JpaRepository<% } %><% if (databaseType === 'mongodb') { %>MongoRepository<% } %><% if (databaseType === 'couchbase') { %>N1qlCouchbaseRepository<% } %><<%=entityClass%>, <%= (primaryKeyCount <= 1)?pkType:(entityClass+"Id") %>><% if (jpaMetamodelFiltering) { %>, JpaSpecificationExecutor<<%=entityClass%>><% } %> {
     <%_ for (idx in relationships) {
         if (relationships[idx].relationshipType === 'many-to-one' && relationships[idx].otherEntityName === 'user') { _%>
 

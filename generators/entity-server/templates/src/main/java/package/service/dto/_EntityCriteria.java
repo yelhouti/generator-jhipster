@@ -23,7 +23,7 @@ import io.github.jhipster.service.filter.ZonedDateTimeFilter;<% } %>
 <%_
   const referenceFilterType = '' + pkType + 'Filter';
     var filterVariables = [];
-    if (typeof id === 'undefined') {
+    if ( typeof id === 'undefined' && primaryKeyCount == 0) {
       filterVariables = [{name:'id', type: pkType, filterType:referenceFilterType,fieldInJavaBeanMethod:'Id' } ];
     }
   var extraFilters = {};

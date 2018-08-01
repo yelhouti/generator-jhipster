@@ -22,7 +22,7 @@ import com.codahale.metrics.annotation.Timed;
 <%_ if (dto !== 'mapstruct' || service === 'no') { _%>
 import <%=packageName%>.domain.<%= entityClass %>;
 <%_ } _%>
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
 import <%=packageName%>.domain.<%=entityClass%>Id;
 <%_ } _%>
 <%_ if (service !== 'no') { _%>
@@ -67,30 +67,40 @@ import java.util.stream.StreamSupport;<% } %><% if (searchEngine === 'elasticsea
 
 import static org.elasticsearch.index.query.QueryBuilders.*;<% } %>
 <%_
-// attribute types to id Field (should be put in json?)
-for (idx in id) {
-    let field = fields.find(f=>id[idx].attributeName==f.fieldName);
-    if(field != undefined){
-        id[idx].type=field.fieldType;
-        if (field.fieldType.toLowerCase() === 'boolean') {
-            id[idx].getter="is";
-        } else {
-            id[idx].getter="get";
-        }
-    }else{
-        id[idx].type="Long";
-        id[idx].getter="get";
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
     }
-    id[idx].getter+=id[idx].attributeName.charAt(0).toUpperCase() + id[idx].attributeName.slice(1)+ "()";
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
+// attribute types to id Field (should be put in json?)
+for (idx in idFields) {
+    if (idFields[idx].fieldType.toLowerCase() === 'boolean') {
+        idFields[idx].getter="is";
+    } else {
+        idFields[idx].getter="get";
+    }
+    idFields[idx].getter+=idFields[idx].fieldName.charAt(0).toUpperCase() + idFields[idx].fieldName.slice(1)+ "()";
 }
 let idPath="";
 let pathVariable="";
 let idParams="";
-if(typeof id !== 'undefined'){
-    for(idx in id){
-        idPath+=("/{"+id[idx].attributeName+"}");
-        pathVariable+=('@PathVariable '+id[idx].type+' '+id[idx].attributeName+', ');
-        idParams+=(id[idx].attributeName+", ");
+if(primaryKeyCount > 1){
+    for(idx in idFields){
+        idPath+=(((idx==0)?"/":",")+"{"+idFields[idx].fieldName+"}");
+        pathVariable+=('@PathVariable '+idFields[idx].fieldType+' '+idFields[idx].fieldName+', ');
+        idParams+=(idFields[idx].fieldName+", ");
     }
     pathVariable=pathVariable.slice(0,-2)
     idParams=idParams.slice(0,-2)
@@ -127,17 +137,17 @@ public class <%= entityClass %>Resource {
     @Timed
     public ResponseEntity<<%= instanceType %>> create<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
         log.debug("REST request to save <%= entityClass %> : {}", <%= instanceName %>);
-        <%_ if (typeof id === 'undefined') { _%>
+        <%_ if ( typeof id === 'undefined' && primaryKeyCount == 0) { _%>
         if (<%= instanceName %>.getId() != null) {
             throw new BadRequestAlertException("A new <%= entityInstance %> cannot already have an ID", ENTITY_NAME, "idexists");
         }<%_ } _%><%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
         <%_
-        if (typeof id === 'undefined') {
+        if ( typeof id === 'undefined' && primaryKeyCount == 0) {
             path='"/"+result.getId().toString()'
         } else {
             path='';
-            for (idx in id) {
-                path+='"/"+result.'+id[idx].getter+"+";
+            for (idx in idFields) {
+                path+='"/"+result.'+idFields[idx].getter+"+";
             }
             path=path.slice(0, -1);
         }
@@ -160,17 +170,17 @@ public class <%= entityClass %>Resource {
     @Timed
     public ResponseEntity<<%= instanceType %>> update<%= entityClass %>(<% if (validation) { %>@Valid <% } %>@RequestBody <%= instanceType %> <%= instanceName %>) throws URISyntaxException {
         log.debug("REST request to update <%= entityClass %> : {}", <%= instanceName %>);
-        <%_ if (typeof id === 'undefined') { _%>
+        <%_ if ( typeof id === 'undefined' && primaryKeyCount == 0) { _%>
         if (<%= instanceName %>.getId() == null) {
             return create<%= entityClass %>(<%= instanceName %>);
         }<%_ } _%><%- include('../../common/save_template', {viaService: viaService, returnDirectly: false}); -%>
                 <%_
-        if (typeof id === 'undefined') {
+        if ( typeof id === 'undefined' && primaryKeyCount == 0) {
             path='"/"+'+instanceName+'.getId().toString()'
         } else {
             path='';
-            for (idx in id) {
-                path+='"/"+'+instanceName+'.'+id[idx].getter+"+";
+            for (idx in idFields) {
+                path+='"/"+'+instanceName+'.'+idFields[idx].getter+"+";
             }
             path=path.slice(0, -1);
         }
@@ -194,11 +204,11 @@ public class <%= entityClass %>Resource {
     /**
      * GET  /<%= entityApiUrl %>/:id : get the "id" <%= entityInstance %>.
      *
-<%_ if(typeof id === 'undefined'){ _%>
+<%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
      * @param id the id of the <%= instanceName %> to retrieve
 <%_ } else {_%>
-    <%_ for (idx in id) { _%>
-     * @param <%= id[idx].attributeName %> the <%= id[idx].attributeName %> of the <%= instanceName %> to retrieve
+    <%_ for (idx in idFields) { _%>
+     * @param <%= idFields[idx].fieldName %> the <%= idFields[idx].fieldName %> of the <%= instanceName %> to retrieve
     <%_ } _%>
 <%_ } _%>
      * @return the ResponseEntity with status 200 (OK) and with body the <%= instanceName %>, or with status 404 (Not Found)
@@ -206,7 +216,7 @@ public class <%= entityClass %>Resource {
     @GetMapping("/<%= entityApiUrl %><%= idPath %>")
     @Timed
     public ResponseEntity<<%= instanceType %>> get<%= entityClass %>(<%= pathVariable %>) {
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
         <%= entityClass %>Id id = new <%= entityClass %>Id(<%= idParams %>);
 <%_ } _%>
         log.debug("REST request to get <%= entityClass %> : {}", id);<%- include('../../common/get_template', {viaService: viaService, returnDirectly:false}); -%>
@@ -216,11 +226,11 @@ public class <%= entityClass %>Resource {
     /**
      * DELETE  /<%= entityApiUrl %>/:id : delete the "id" <%= entityInstance %>.
      *
-<%_ if(typeof id === 'undefined'){ _%>
+<%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
      * @param id the id of the <%= instanceName %> to retrieve
 <%_ } else {_%>
-    <%_ for (idx in id) { _%>
-     * @param <%= id[idx].attributeName %> the <%= id[idx].attributeName %> of the <%= instanceName %> to retrieve
+    <%_ for (idx in idFields) { _%>
+     * @param <%= idFields[idx].fieldName %> the <%= idFields[idx].fieldName %> of the <%= instanceName %> to retrieve
     <%_ } _%>
 <%_ } _%>
      * @return the ResponseEntity with status 200 (OK)
@@ -228,7 +238,7 @@ public class <%= entityClass %>Resource {
     @DeleteMapping("/<%= entityApiUrl %><%= idPath %>")
     @Timed
     public ResponseEntity<Void> delete<%= entityClass %>(<%= pathVariable %>) {
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
         <%= entityClass %>Id id = new <%= entityClass %>Id(<%= idParams %>);
 <%_ } _%>
         log.debug("REST request to delete <%= entityClass %> : {}", id);<%- include('../../common/delete_template', {viaService: viaService}); -%>

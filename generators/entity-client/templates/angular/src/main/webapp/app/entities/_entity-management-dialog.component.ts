@@ -17,6 +17,23 @@
  limitations under the License.
 -%>
 <%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
 const i18nToLoad = [entityInstance];
 for (const idx in fields) {
     if (fields[idx].fieldIsEnum === true) {
@@ -66,6 +83,9 @@ export class <%= entityAngularName %>DialogComponent implements OnInit {
 
     <%= entityInstance %>: <%= entityAngularName %>;
     isSaving: boolean;
+<%_ if(primaryKeyCount > 0) { _%>
+    disabledId: boolean;
+<%_ } _%>
     <%_
     for (const idx in variables) { %>
     <%- variables[idx] %>
@@ -108,6 +128,9 @@ export class <%= entityAngularName %>DialogComponent implements OnInit {
         <%_ for (idx in queries) { _%>
         <%- queries[idx] %>
         <%_ } _%>
+        <%_ if(primaryKeyCount > 0 ) { _%>
+        this.disabledId = <%- idFields.map(f=>"(this."+entityInstance+"."+f.fieldName+" !== undefined)").join(" &&\n            ") -%>;
+        <%_ } _%>
     }
 
     <%_ if (fieldsContainBlob) { _%>
@@ -136,6 +159,7 @@ export class <%= entityAngularName %>DialogComponent implements OnInit {
 
     save() {
         this.isSaving = true;
+    <%_ if(primaryKeyCount === 0) { _%>
         if (this.<%= entityInstance %>.id !== undefined) {
             this.subscribeToSaveResponse(
                 this.<%= entityInstance %>Service.update(this.<%= entityInstance %>));
@@ -143,6 +167,10 @@ export class <%= entityAngularName %>DialogComponent implements OnInit {
             this.subscribeToSaveResponse(
                 this.<%= entityInstance %>Service.create(this.<%= entityInstance %>));
         }
+    <%_ } else { _%>
+        this.subscribeToSaveResponse(
+            this.<%= entityInstance %>Service.update(this.<%= entityInstance %>));
+    <%_ } _%>
     }
 
     private subscribeToSaveResponse(result: Observable<HttpResponse<<%= entityAngularName %>>>) {
@@ -206,9 +234,17 @@ export class <%= entityAngularName %>PopupComponent implements OnInit, OnDestroy
 
     ngOnInit() {
         this.routeSub = this.route.params.subscribe((params) => {
+        <%_ if(primaryKeyCount===0) { _%>
             if ( params['id'] ) {
+        <%_ } else { _%>
+            if ( <%- idFields.map(f=>"params['"+f.fieldName+"']").join(" && ") -%> ) {
+        <%_ } _%>
                 this.<%= entityInstance %>PopupService
+                <%_ if(primaryKeyCount===0) { _%>
                     .open(<%= entityAngularName %>DialogComponent as Component, params['id']);
+                <%_ } else { _%>
+                    .open(<%= entityAngularName %>DialogComponent as Component, <%- idFields.map(f=>"params['"+f.fieldName+"']").join(", ") -%>);
+                <%_ } _%>
             } else {
                 this.<%= entityInstance %>PopupService
                     .open(<%= entityAngularName %>DialogComponent as Component);

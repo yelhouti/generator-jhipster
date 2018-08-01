@@ -144,7 +144,7 @@ const serverFiles = {
             ],
         },
         {
-            condition: generator => generator.id,
+            condition: generator => generator.primaryKeyCount > 1,
             path: SERVER_MAIN_SRC_DIR,
             templates: [
                 {

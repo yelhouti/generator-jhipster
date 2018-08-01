@@ -17,6 +17,23 @@
  limitations under the License.
 -%>
 <%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
 const i18nToLoad = [entityInstance];
 for (const idx in fields) {
     if (fields[idx].fieldIsEnum === true) {
@@ -55,13 +72,22 @@ export class <%= entityAngularName %>DetailComponent implements OnInit, OnDestro
 
     ngOnInit() {
         this.subscription = this.route.params.subscribe((params) => {
+        <%_ if(primaryKeyCount===0) { _%>
             this.load(params['id']);
+        <%_ } else { _%>
+            this.load(<%- idFields.map(f=>"params['"+f.fieldName+"']").join(", ") -%>);
+        <%_ } _%>
         });
         this.registerChangeIn<%= entityClassPlural %>();
     }
 
-    load(id) {
+<%_ if(primaryKeyCount===0) { _%>
+    load(id: <% if (pkType === 'String') { %>string<% } else { %>number<% } %>) {
         this.<%= entityInstance %>Service.find(id)
+<%_ } else { _%>
+    load(<%- idFields.map(f=>f.fieldName+": "+((f.fieldType==='String')?'string':'number')).join(", ") -%>) {
+        this.<%= entityInstance %>Service.find(<%- idFields.map(f=>f.fieldName).join(", ") -%>)
+<%_ } _%>
             .subscribe((<%= entityInstance %>Response: HttpResponse<<%= entityAngularName %>>) => {
                 this.<%= entityInstance %> = <%= entityInstance %>Response.body;
             });
@@ -87,7 +113,11 @@ export class <%= entityAngularName %>DetailComponent implements OnInit, OnDestro
     registerChangeIn<%= entityClassPlural %>() {
         this.eventSubscriber = this.eventManager.subscribe(
             '<%= entityInstance %>ListModification',
+        <%_ if(primaryKeyCount===0) { _%>
             (response) => this.load(this.<%= entityInstance %>.id)
+        <%_ } else { _%>
+            (response) => this.load(<%- idFields.map(f=>"this."+entityInstance+"."+f.fieldName).join(", ") -%>)
+        <%_ } _%>
         );
     }
 }

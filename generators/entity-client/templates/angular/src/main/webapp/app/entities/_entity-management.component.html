@@ -16,6 +16,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 <div>
     <%_ const keyPrefix = angularAppName + '.'+ entityTranslationKey + '.'; _%>
     <h2>
@@ -50,7 +67,9 @@
         <table class="table table-striped">
             <thead>
             <tr<% if (pagination !== 'no') { %> jhiSort [(predicate)]="predicate" [(ascending)]="reverse" [callback]="<%=pagination !== 'infinite-scroll' ? 'transition.bind(this)' : 'reset.bind(this)'%>"<% } %>>
+            <%_ if(primaryKeyCount === 0){ _%>
             <th<% if (pagination !== 'no') { %> jhiSortBy="id"<% } %>><span jhiTranslate="global.field.id">ID</span><% if (pagination !== 'no') { %> <span class="fa fa-sort"></span><% } %></th>
+            <%_ } _%>
             <%_ for (idx in fields) { _%>
             <th<% if (pagination !== 'no') { %> jhiSortBy="<%= fields[idx].fieldName%>"<% } %>><span jhiTranslate="<%=keyPrefix + fields[idx].fieldName %>"><%= fields[idx].fieldNameHumanized %></span><% if (pagination !== 'no') { %> <span class="fa fa-sort"></span><% } %></th>
             <%_ } _%>
@@ -67,7 +86,9 @@
             </thead>
             <tbody<% if (pagination === 'infinite-scroll') { %> infinite-scroll (scrolled)="loadPage(page + 1)" [infiniteScrollDisabled]="page >= links['last']" [infiniteScrollDistance]="0"<% } %>>
             <tr *ngFor="let <%=entityInstance %> of <%=entityInstancePlural %> ;trackBy: trackId">
+                <%_ if(primaryKeyCount === 0){ _%>
                 <td><a [routerLink]="['../<%= entityUrl %>', <%= entityInstance %>.id ]">{{<%=entityInstance %>.id}}</a></td>
+                <%_ } _%>
                 <%_ for (idx in fields) {
                 const fieldName = fields[idx].fieldName;
                 const fieldNameCapitalized = fields[idx].fieldNameCapitalized;
@@ -143,13 +164,21 @@
                 <td class="text-right">
                     <div class="btn-group flex-btn-group-container">
                         <button type="submit"
-                                [routerLink]="['../<%= entityUrl %>', <%= entityInstance %>.id ]"
+                        <%_ if(primaryKeyCount===0) { _%>
+                            [routerLink]="['../<%= entityUrl %>', <%= entityInstance %>.id ]"
+                        <%_ } else { _%>
+                            [routerLink]="['../<%= entityUrl %>', <%- idFields.map(f=>entityInstance +"."+f.fieldName).join(" , ") -%> ]"
+                        <%_ } _%>
                                 class="btn btn-info btn-sm">
                             <span class="fa fa-eye"></span>
                             <span class="d-none d-md-inline" jhiTranslate="entity.action.view">View</span>
                         </button>
                         <button type="submit"
+                            <%_ if(primaryKeyCount===0) { _%>
                                 [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%= entityInstance %>.id + '/edit'} }]"
+                            <%_ } else { _%>
+                                [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%- idFields.map(f=>entityInstance +"."+f.fieldName).join(" + '/' + ") -%> + '/edit'} }]"
+                            <%_ } _%>
                                 replaceUrl="true"
                                 queryParamsHandling="merge"
                                 class="btn btn-primary btn-sm">
@@ -157,7 +186,11 @@
                             <span class="d-none d-md-inline" jhiTranslate="entity.action.edit">Edit</span>
                         </button>
                         <button type="submit"
+                            <%_ if(primaryKeyCount===0) { _%>
                                 [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%= entityInstance %>.id + '/delete'} }]"
+                            <%_ } else { _%>
+                                [routerLink]="['/', { outlets: { popup: '<%= entityUrl %>/'+ <%- idFields.map(f=>entityInstance +"."+f.fieldName).join(" + '/' + ") -%> + '/delete'} }]"
+                            <%_ } _%>
                                 replaceUrl="true"
                                 queryParamsHandling="merge"
                                 class="btn btn-danger btn-sm">

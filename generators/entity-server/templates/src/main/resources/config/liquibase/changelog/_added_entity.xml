@@ -48,13 +48,17 @@
     -->
     <changeSet id="<%= changelogDate %>-1" author="jhipster">
         <createTable tableName="<%= entityTableName %>">
+            <%_ if(typeof id === 'undefined' && primaryKeyCount == 0){ _%>
             <column name="id" type="bigint" autoIncrement="${autoIncrement}">
                 <constraints primaryKey="true" nullable="false"/>
-            </column><% for (idx in fields) {
+            </column>
+            <%_ } _%>
+            <% for (idx in fields) {
             let nullable = true;
             if (fields[idx].fieldValidate === true && fields[idx].fieldValidateRules.includes('required')) {
                 nullable = false;
             }
+            const primaryKey = fields[idx].primaryKey;
             let unique = false;
             if (fields[idx].fieldValidate === true && fields[idx].fieldValidateRules.includes('unique')) {
                 unique = true;
@@ -102,7 +106,9 @@
             }
             %>
             <column name="<%=columnName %>" type="<%=columnType %>">
-                <%_ if (unique) { _%>
+                <%_ if (primaryKey) { _%>
+                <constraints nullable="<%= nullable %>" primaryKey="true" />
+                <%_ } else if (unique) { _%>
                 <constraints nullable="<%= nullable %>" unique="true" />
                 <%_ } else { _%>
                 <constraints nullable="<%= nullable %>" />
@@ -114,6 +120,7 @@
             </column>
             <%_ }  _%>
             <%_ } _%><% for (idx in relationships) {
+                let primaryKey = relationships[idx].primaryKey;
                 let nullable_relation = true,
                 relationshipType = relationships[idx].relationshipType,
                 relationshipName = relationships[idx].relationshipName;
@@ -122,7 +129,7 @@
                 }
                 if (relationships[idx].relationshipType === 'many-to-one') { %>
             <column name="<%=getColumnName(relationshipName) %>_id" type="bigint">
-                <constraints nullable="<%= nullable_relation %>" />
+                <constraints <%- primaryKey?'primaryKey="true"':'' -%> nullable="<%= nullable_relation %>" />
             </column>
             <%_ } else if (relationshipType === 'one-to-one' && relationships[idx].ownerSide === true) { _%>
             <column name="<%=getColumnName(relationshipName) %>_id" type="bigint">

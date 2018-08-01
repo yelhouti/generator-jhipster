@@ -16,6 +16,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 import { Injectable, Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
@@ -47,16 +64,23 @@ export class <%= entityAngularName %>PopupService {
     ) {
         this.ngbModalRef = null;
     }
-
+<%_ if(primaryKeyCount===0) { _%>
     open(component: Component, id?: number | any): Promise<NgbModalRef> {
+<%_ } else { _%>
+    open(component: Component, <%- idFields.map(f=>f.fieldName+"?: "+((f.fieldType==='String')?'string':'number')).join(", ") -%>): Promise<NgbModalRef> {
+<%_ } _%>
         return new Promise<NgbModalRef>((resolve, reject) => {
             const isOpen = this.ngbModalRef !== null;
             if (isOpen) {
                 resolve(this.ngbModalRef);
             }
-
+        <%_ if(primaryKeyCount===0) { _%>
             if (id) {
                 this.<%= entityInstance %>Service.find(id)
+        <%_ } else { _%>
+            if (<%- idFields.map(f=>f.fieldName).join(" && ") -%>) {
+                this.<%= entityInstance %>Service.find(<%- idFields.map(f=>f.fieldName).join(", ") -%>)
+        <%_ } _%>
                     .subscribe((<%= entityInstance %>Response: HttpResponse<<%= entityAngularName %>>) => {
                         const <%= entityInstance %>: <%= entityAngularName %> = <%= entityInstance %>Response.body;
                         <%_ if (hasDate) { _%>

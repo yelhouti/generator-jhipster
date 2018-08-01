@@ -19,7 +19,7 @@
 package <%=packageName%>.repository.search;
 
 import <%=packageName%>.domain.<%=entityClass%>;
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
 import <%=packageName%>.domain.<%=entityClass%>Id;
 <%_ } _%>
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;<% if (databaseType === 'cassandra') { %>

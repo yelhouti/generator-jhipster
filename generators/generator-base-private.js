@@ -901,6 +901,21 @@ module.exports = class extends Generator {
     }
 
     /**
+     * Generate a primary key, according to the type
+     *
+     * @param {string[]} pkType - the types of the primary keys
+     */
+    generateTestEntityIds(pkTypes) {
+        return pkTypes.map((pkType, index) => {
+            if (pkType === 'String') {
+                return '\''+((index+1)*11)+'\'';
+            } else {
+                return (index+1)*11;
+            }
+        })
+    }
+
+    /**
      * Decide the primary key type based on DB
      *
      * @param {any} databaseType - the database type

@@ -392,6 +392,7 @@ module.exports = class extends BaseGenerator {
                 this.data.dto = context.dto;
                 this.data.service = context.service;
                 this.data.entityTableName = context.entityTableName;
+                this.data.primaryKeyCount = context.primaryKeyCount;
                 this.copyFilteringFlag(context, this.data, context);
                 if (['sql', 'mongodb', 'couchbase'].includes(context.databaseType)) {
                     this.data.pagination = context.pagination;
@@ -455,6 +456,7 @@ module.exports = class extends BaseGenerator {
                 }
                 context.differentRelationships = {};
 
+                context.primaryKeyCount=0;
                 // Load in-memory data for fields
                 context.fields.forEach((field) => {
                     // Migration from JodaTime to Java Time
@@ -539,6 +541,9 @@ module.exports = class extends BaseGenerator {
 
                     if (field.fieldValidate) {
                         context.validation = true;
+                    }
+                    if(field.primaryKey){
+                        context.primaryKeyCount++;
                     }
                 });
                 // Load in-memory data for relationships
@@ -670,6 +675,9 @@ module.exports = class extends BaseGenerator {
                         context.differentRelationships[entityType] = [];
                     }
                     context.differentRelationships[entityType].push(relationship);
+                    if(relationship.primaryKey){
+                        context.primaryKeyCount++;
+                    }
                 });
                 context.pkType = this.getPkType(context.databaseType);
             },

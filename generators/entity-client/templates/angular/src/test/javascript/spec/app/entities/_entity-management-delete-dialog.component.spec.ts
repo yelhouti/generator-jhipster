@@ -17,7 +17,24 @@
  limitations under the License.
 -%>
 <%_
-const tsKeyId = generateTestEntityId(pkType, prodDatabaseType);
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
+tsKeyId = (primaryKeyCount === 0)?generateTestEntityId(pkType, prodDatabaseType):generateTestEntityIds(idFields.map(f=>f.fieldType)).join(", ");
 _%>
 /* tslint:disable max-line-length */
 import { ComponentFixture, TestBed, async, inject, fakeAsync, tick } from '@angular/core/testing';

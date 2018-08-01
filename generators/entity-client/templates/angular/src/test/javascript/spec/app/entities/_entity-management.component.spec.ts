@@ -17,7 +17,24 @@
  limitations under the License.
 -%>
 <%_
-const tsKeyId = generateTestEntityId(pkType, prodDatabaseType);
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
+tsKeyId = (primaryKeyCount === 0)?generateTestEntityId(pkType, prodDatabaseType):generateTestEntityIds(idFields.map(f=>f.fieldType)).join(", ");
 _%>
 /* tslint:disable max-line-length */
 import { ComponentFixture, TestBed, async } from '@angular/core/testing';
@@ -68,7 +85,13 @@ describe('Component Tests', () => {
 
                 // THEN
                 expect(service.query).toHaveBeenCalled();
+                <%_ if(primaryKeyCount === 0){ _%>
                 expect(comp.<%= entityInstancePlural %>[0]).toEqual(jasmine.objectContaining({id: <%- tsKeyId %>}));
+                <%_ } else {
+                let object=idFields
+                    .map((f, index)=>f.fieldName+": "+((f.fieldType==='String')?("'"+((index+1)*11)+"'"):((index+1)*11))).join(", ") _%>
+                expect(comp.<%= entityInstancePlural %>[0]).toEqual(jasmine.objectContaining({<%= object %>}));
+                <%_ } _%>
             });
         });
     });

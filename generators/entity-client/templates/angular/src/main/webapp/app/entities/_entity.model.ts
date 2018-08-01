@@ -17,17 +17,7 @@
  limitations under the License.
 -%>
 <%_
-const variables = {};
-const defaultVariablesValues = {};
-let hasUserRelationship = false;
-let tsKeyType;
-if (pkType === 'String') {
-    tsKeyType = 'string';
-} else {
-    tsKeyType = 'number';
-}
-variables['id'] = 'id?: ' + tsKeyType;
-fields.forEach(field => {
+function fieldToVariable(field){
     const fieldType = field.fieldType;
     const fieldName = field.fieldName;
     let tsType;
@@ -47,8 +37,8 @@ fields.forEach(field => {
         }
     }
     variables[fieldName] = fieldName + '?: ' + tsType;
-});
-relationships.forEach(relationship => {
+}
+function relationshipToVariable(relationship){
     let fieldType;
     let fieldName;
     const relationshipType = relationship.relationshipType;
@@ -75,10 +65,43 @@ relationships.forEach(relationship => {
         }
     }
     variables[fieldName] = fieldName + '?: ' + fieldType;
+}
+const variables = {};
+const defaultVariablesValues = {};
+let hasUserRelationship = false;
+let tsKeyType;
+if (pkType === 'String') {
+    tsKeyType = 'string';
+} else {
+    tsKeyType = 'number';
+}
+relationships.filter(r=>r.primaryKey).forEach(relationship => {
+    relationshipToVariable(relationship)
+});
+fields.filter(f=>f.primaryKey).forEach(field => {
+    fieldToVariable(field);
+});
+relationships.filter(r=>!r.primaryKey).forEach(relationship => {
+    relationshipToVariable(relationship)
+});
+relationships.forEach(relationship => {
+    const relationshipType = relationship.relationshipType;
+    if(
+        (!(relationshipType === 'one-to-many' || relationshipType === 'many-to-many'))
+        && (dto !== 'no')
+        && relationship.otherEntityName
+        && (relationship.otherEntityName !=='id')
+    ){
+        let otherFieldName=relationship.otherEntityName + relationship.otherEntityFieldCapitalized;
+        variables[otherFieldName] = otherFieldName + "?: string"
+    }
+});
+fields.filter(f=>!f.primaryKey).forEach(field => {
+    fieldToVariable(field);
 });
 _%>
-import { BaseEntity<% if (hasUserRelationship) { %>, User<% } %> } from './../../shared';
-
+<%_ if (primaryKeyCount === 0) { %>import { BaseEntity } from './../../shared';<% } _%>
+<%_ if (hasUserRelationship) { %>import { User } from './../../shared';<% } _%>
 <%_ const enumsAlreadyDeclared = [];
 fields.forEach(field => {
     if (field.fieldIsEnum && !enumsAlreadyDeclared.includes(field.fieldType)) {
@@ -92,7 +115,7 @@ export const enum <%= field.fieldType %> {<%
 
 <%_ }
 }); _%>
-export class <%= entityAngularName %> implements BaseEntity {
+export class <%= entityAngularName %><%= (primaryKeyCount === 0)?' implements BaseEntity':'' %> {
     constructor(<% for (idx in variables) { %>
         public <%- variables[idx] %>,<% } %>
     ) {<% for (idx in defaultVariablesValues) { %>

@@ -111,26 +111,38 @@ public class <%= serviceClassName %> extends QueryService<<%= entityClass %>> {
     private Specifications<<%= entityClass %>> createSpecification(<%= criteria %> criteria) {
         Specifications<<%= entityClass %>> specification = Specifications.where(null);
         if (criteria != null) {
-            <%_ if(typeof id === 'undefined'){ _%>
+            <%_ if(typeof id === 'undefined' && primaryKeyCount == 0){ _%>
             if (criteria.getId() != null) {
                 specification = specification.and(buildSpecification(criteria.getId(), <%= entityClass %>_.id));
             }
             <%_ } _%>
             <%_
             fields.forEach((field) => {
-                if (isFilterableType(field.fieldType)) { _%>
+                if (isFilterableType(field.fieldType)) {
+                    if(field.primaryKey){ _%>
+            if (criteria.get<%= field.fieldInJavaBeanMethod %>() != null) {
+                specification = specification.and(buildReferringEntitySpecification(criteria.get<%= field.fieldInJavaBeanMethod %>(), <%= entityClass %>_.id, <%= entityClass %>Id_.<%= field.fieldName %>));
+            }
+            <%_ } else { _%>
             if (criteria.get<%= field.fieldInJavaBeanMethod %>() != null) {
                 specification = specification.and(<%= getSpecificationBuilder(field.fieldType) %>(criteria.get<%= field.fieldInJavaBeanMethod %>(), <%= entityClass %>_.<%= field.fieldName %>));
             }
-            <%_ }
+                    <%_ }
+                }
             });
 
             relationships.forEach((relationship) => {
-                const metamodelFieldName = (relationship.relationshipType === 'many-to-many' || relationship.relationshipType === 'one-to-many') ? relationship.relationshipFieldNamePlural : relationship.relationshipFieldName; _%>
+                const metamodelFieldName = (relationship.relationshipType === 'many-to-many' || relationship.relationshipType === 'one-to-many') ? relationship.relationshipFieldNamePlural : relationship.relationshipFieldName;
+                if(relationship.primaryKey){ _%>
+            if (criteria.get<%= relationship.relationshipNameCapitalized %>Id() != null) {
+                specification = specification.and(buildReferringEntitySpecification(criteria.get<%= relationship.relationshipNameCapitalized %>Id(), <%= entityClass %>_.id, <%= entityClass %>Id_.<%= relationship.otherEntityName %>Id));
+            }
+            <%_ } else { _%>
             if (criteria.get<%= relationship.relationshipNameCapitalized %>Id() != null) {
                 specification = specification.and(buildReferringEntitySpecification(criteria.get<%= relationship.relationshipNameCapitalized %>Id(), <%= entityClass %>_.<%= metamodelFieldName %>, <%= relationship.otherEntityNameCapitalized %>_.id));
             }
-            <%_ }); // forEach
+                <%_ }
+            }); // forEach
         _%>
         }
         return specification;

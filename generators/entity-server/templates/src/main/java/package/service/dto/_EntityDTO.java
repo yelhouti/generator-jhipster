@@ -34,12 +34,30 @@ import javax.persistence.Lob;<% } %>
 <%_ for (idx in fields) { if (fields[idx].fieldIsEnum === true) { _%>
 import <%=packageName%>.domain.enumeration.<%= fields[idx].fieldType %>;
 <%_ } } _%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        field.fieldNameAsDatabaseColumn = getColumnName(relationships[idx].relationshipName)
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 
 /**
  * A DTO for the <%= entityClass %> entity.
  */
 public class <%= entityClass %>DTO implements Serializable {
-<%_ if(typeof id === 'undefined'){ _%>
+<%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
     <% if (databaseType === 'sql') { %>
     private Long id;<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>
     private String id;<% } %><% if (databaseType === 'cassandra') { %>
@@ -84,6 +102,8 @@ public class <%= entityClass %>DTO implements Serializable {
         const relationshipFieldName = relationships[idx].relationshipFieldName;
         const relationshipFieldNamePlural = relationships[idx].relationshipFieldNamePlural;
         const relationshipType = relationships[idx].relationshipType;
+        const relationshipValidate = relationships[idx].relationshipValidate;
+        const relationshipRequired = relationships[idx].relationshipRequired;
         const otherEntityNameCapitalized = relationships[idx].otherEntityNameCapitalized;
         const otherEntityFieldCapitalized = relationships[idx].otherEntityFieldCapitalized;
         const ownerSide = relationships[idx].ownerSide; _%>
@@ -92,12 +112,15 @@ public class <%= entityClass %>DTO implements Serializable {
     private Set<<%= otherEntityNameCapitalized %>DTO> <%= relationshipFieldNamePlural %> = new HashSet<>();
     <%_ } else if (relationshipType === 'many-to-one' || (relationshipType === 'one-to-one' && ownerSide === true)) { _%>
 
+    <%_ if (relationshipValidate && relationshipRequired) { _%>
+    @NotNull
+    <%_ } _%>
     private Long <%= relationshipFieldName %>Id;
     <%_ if (otherEntityFieldCapitalized !='Id' && otherEntityFieldCapitalized !== '') { _%>
 
     private String <%= relationshipFieldName %><%= otherEntityFieldCapitalized %>;
     <%_ } } } _%>
-    <%_ if(typeof id === 'undefined'){ _%>
+    <%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
     public <% if (databaseType === 'sql') { %>Long<% } %><% if (databaseType === 'mongodb' || databaseType === 'couchbase') { %>String<% } %><% if (databaseType === 'cassandra') { %>UUID<% } %> getId() {
         return id;
     }
@@ -199,14 +222,14 @@ public class <%= entityClass %>DTO implements Serializable {
         }
 
         <%= entityClass %>DTO <%= entityInstance %>DTO = (<%= entityClass %>DTO) o;
-        <%_ if(typeof id === 'undefined'){ _%>
+        <%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
         if(<%= entityInstance %>DTO.getId() == null || getId() == null) {
             return false;
         }
         return Objects.equals(getId(), <%= entityInstance %>DTO.getId());
         <%_ } else { _%>
-        <%_ for (idx in id) { _%>
-            <% if(idx==0){ %>return <% }else{ %>    && <% } %>Objects.equals(<%= id[idx].attributeName %>, <%= entityInstance %>DTO.<%= id[idx].attributeName %>)
+        <%_ for (idx in idFields) { _%>
+            <% if(idx==0){ %>return <% }else{ %>    && <% } %>Objects.equals(<%= idFields[idx].fieldName %>, <%= entityInstance %>DTO.<%= idFields[idx].fieldName %>)
         <%_ } _%>
             ;
         <%_ } _%>
@@ -215,12 +238,12 @@ public class <%= entityClass %>DTO implements Serializable {
 
     @Override
     public int hashCode() {
-        <%_ if(typeof id === 'undefined'){ _%>
+        <%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
         return Objects.hashCode(getId());
         <%_ } else { _%>
         int result = 17;
-        <%_ for (idx in id) { _%>
-        result = 31 * result + <%= id[idx].attributeName %>.hashCode();
+        <%_ for (idx in idFields) { _%>
+        result = 31 * result + Objects.hashCode(this.<%= idFields[idx].fieldName %>);
         <%_ } _%>
         return result;
         <%_ } _%>
@@ -229,15 +252,25 @@ public class <%= entityClass %>DTO implements Serializable {
     @Override
     public String toString() {
         return "<%= entityClass %>DTO{" +
-<%_ if(typeof id === 'undefined'){ _%>
+<%_ if( typeof id === 'undefined' && primaryKeyCount == 0){ _%>
             "id=" + getId() +
 <%_ } _%>
+            <%_ for (idx in idFields) {
+                    const fieldName = idFields[idx].fieldName;
+                    const fieldType = idFields[idx].fieldType;
+                    const isNumeric = ['integer', 'long', 'float', 'double', 'bigdecimal'].includes(fieldType.toLowerCase()); _%>
+            ", <%= fieldName %>=<% if (! isNumeric) { %>'<% } %>" + <%= fieldName %> <% if (! isNumeric) { %>+ "'" <% } %>+
+            <%_
+            } _%>
             <%_ for (idx in fields) {
-                const fieldName = fields[idx].fieldName;
-                const fieldType = fields[idx].fieldType;
-                const isNumeric = ['integer', 'long', 'float', 'double', 'bigdecimal'].includes(fieldType.toLowerCase()); _%>
-            ", <%= fieldName %>=<% if (! isNumeric) { %>'<% } %>" + <% if (fieldType.toLowerCase() === 'boolean') { %>is<% } else { %>get<% } %><%= fields[idx].fieldInJavaBeanMethod %>() <% if (! isNumeric) { %>+ "'" <% } %>+
-            <%_ } _%>
+                if(!fields[idx].primaryKey){
+                    const fieldName = fields[idx].fieldName;
+                    const fieldType = fields[idx].fieldType;
+                    const isNumeric = ['integer', 'long', 'float', 'double', 'bigdecimal'].includes(fieldType.toLowerCase()); _%>
+            ", <%= fieldName %>=<% if (! isNumeric) { %>'<% } %>" + <%= fieldName %> <% if (! isNumeric) { %>+ "'" <% } %>+
+            <%_
+                }
+            } _%>
             "}";
     }
 }

@@ -23,40 +23,50 @@ import javax.persistence.Embeddable;
 import java.util.Objects;
 <%_ idClass=entityClass+"Id"; _%>
 <%_ idInstance= idClass.charAt(0).toLowerCase().concat(idClass.slice(1)); _%>
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        field.fieldNameAsDatabaseColumn = getColumnName(relationships[idx].relationshipName)+"_id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 
 @Embeddable
 public class <%= idClass %> implements java.io.Serializable {
     <%
-    for (idx in id) {
-        let field = fields.find(f=>id[idx].attributeName==f.fieldName);
-        if(field != undefined){
-            id[idx].type=field.fieldType;
-        }else{
-            id[idx].type="Long";
-        }
-    }
-    for (idx in id) {
-        let field=id[idx];
+    for (idx in idFields) {
     %>
-    @Column(name = "<%= field.columnName %>", nullable = false)
-    private <%= field.type %> <%= field.attributeName %>;
+    @Column(name = "<%= idFields[idx].fieldNameAsDatabaseColumn %>", nullable = false)
+    private <%= idFields[idx].fieldType %> <%= idFields[idx].fieldName %>;
     <% } %>
 <%_
 let constructorParams="";
-for (idx in id) {
-    constructorParams+=id[idx].type+" "+id[idx].attributeName+", ";
+for (idx in idFields) {
+    constructorParams+=idFields[idx].fieldType+" "+idFields[idx].fieldName+", ";
 }
 constructorParams=constructorParams.slice(0,-2);
 _%>
+    public <%= idClass %>(){}
     public <%= idClass %>(<%= constructorParams %>){
-<%_ for (idx in id) { _%>
-        this.<%= id[idx].attributeName %>=<%= id[idx].attributeName %>;
+<%_ for (idx in idFields) { _%>
+        this.<%= idFields[idx].fieldName %>=<%= idFields[idx].fieldName %>;
 <%_ } _%>
     }
 
-<%_ for (idx in id) {
-    const fieldType = id[idx].type;
-    const fieldName = id[idx].attributeName;
+<%_ for (idx in idFields) {
+    const fieldType = idFields[idx].fieldType;
+    const fieldName = idFields[idx].fieldName;
     const fieldInJavaBeanMethod = fieldName.charAt(0).toUpperCase().concat(fieldName.slice(1)); _%>
     public <%= fieldType %> <% if (fieldType.toLowerCase() === 'boolean') { %>is<% } else { %>get<%_ } _%><%= fieldInJavaBeanMethod %>() {
         return <%= fieldName %>;
@@ -65,6 +75,7 @@ _%>
     public void set<%= fieldInJavaBeanMethod %>(<%= fieldType %> <%= fieldName %>) {
         this.<%= fieldName %> = <%= fieldName %>;
     }
+
 <%_ } _%>
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here, do not remove
@@ -78,8 +89,8 @@ _%>
             return false;
         }
         <%= idClass %> <%= idInstance %> = (<%= idClass %>) o;
-<%_ for (idx in id) { _%>
-        <% if(idx==0){ %>return <% }else{ %>    && <% } %>Objects.equals(<%= id[idx].attributeName %>, businessBasicIndexId.<%= id[idx].attributeName %>)
+<%_ for (idx in idFields) { _%>
+        <% if(idx==0){ %>return <% }else{ %>    && <% } %>Objects.equals(<%= idFields[idx].fieldName %>, businessBasicIndexId.<%= idFields[idx].fieldName %>)
 <%_ } _%>
         ;
     }
@@ -87,8 +98,8 @@ _%>
     @Override
     public int hashCode() {
         int result = 17;
-<%_ for (idx in id) { _%>
-        result = 31 * result + <%= id[idx].attributeName %>.hashCode();
+<%_ for (idx in idFields) { _%>
+        result = 31 * result + <%= idFields[idx].fieldName %>.hashCode();
 <%_ } _%>
         return result;
     }

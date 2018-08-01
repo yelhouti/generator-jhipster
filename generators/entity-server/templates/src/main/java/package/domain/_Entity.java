@@ -111,19 +111,30 @@ import static org.springframework.data.couchbase.core.mapping.id.GenerationStrat
 <%_ } if (searchEngine === 'elasticsearch' && databaseType !== 'mongodb') { _%>
 @Document(indexName = "<%= entityInstance.toLowerCase() %>")
 <%_ } _%>
+<%_
+idFields = []
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName
+        field.fieldNameAsDatabaseColumn = getColumnName(relationships[idx].relationshipName)
+        idFields.push(field);
+    }
+}
+_%>
 public class <%= entityClass %> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 <% if (databaseType === 'sql') { %>
-    <%_ if (typeof id !== 'undefined') { _%>
+    <%_ if (primaryKeyCount > 1) { _%>
     @EmbeddedId
-    @AttributeOverrides({
-        <%_
-        for (idx in id) {
-        _%>
-        @AttributeOverride(name = "<%= id[idx].attributeName %>", column = @Column(name = "<%= id[idx].columnName %>", nullable = false))<%= idx==(id.length-1)?'':',' %>
-        <%_ } _%>
-    })
     private <%= entityClass %>Id id;
     <%_ } else { _%>
     @Id
@@ -151,6 +162,7 @@ public class <%= entityClass %> implements Serializable {
 <%_ } _%>
 
 <%_ for (idx in fields) {
+    if(!fields[idx].primaryKey){
     if (typeof fields[idx].javadoc !== 'undefined') { _%>
 <%- formatAsFieldJavadoc(fields[idx].javadoc) %>
     <%_ }
@@ -210,6 +222,7 @@ public class <%= entityClass %> implements Serializable {
 
     <%_ }
     }
+    }
 
     for (idx in relationships) {
         const otherEntityRelationshipName = relationships[idx].otherEntityRelationshipName;
@@ -223,6 +236,7 @@ public class <%= entityClass %> implements Serializable {
         const relationshipRequired = relationships[idx].relationshipRequired;
         const otherEntityNameCapitalized = relationships[idx].otherEntityNameCapitalized;
         const ownerSide = relationships[idx].ownerSide;
+        const primaryKey = relationships[idx].primaryKey;
         if (otherEntityRelationshipName) {
             mappedBy = otherEntityRelationshipName.charAt(0).toLowerCase() + otherEntityRelationshipName.slice(1)
         }
@@ -245,6 +259,9 @@ public class <%= entityClass %> implements Serializable {
 
     <%_ } else if (relationshipType === 'many-to-one') { _%>
     @ManyToOne<% if (relationshipRequired) { %>(optional = false)<% } %>
+    <%_ if (primaryKey) { _%>
+    @JoinColumn(name="<%=  getColumnName(relationships[idx].relationshipName) %>_id %>", insertable = false, updatable = false)
+    <%_ } _%>
         <%_ if (relationshipValidate) { _%>
     <%- include relationship_validators -%>
         <%_ }_%>
@@ -286,7 +303,7 @@ public class <%= entityClass %> implements Serializable {
     } _%>
     // jhipster-needle-entity-add-field - JHipster will add fields here, do not remove
     <%_
-    if (databaseType === 'sql') { idType=(typeof id !== "undefined")?(entityClass+"Id"):"Long" }
+    if (databaseType === 'sql') { idType=(primaryKeyCount > 1)?(entityClass+"Id"):"Long" }
     else if (databaseType === 'mongodb' || databaseType === 'couchbase') { idType="String" }
     else if (databaseType === 'cassandra') { idType="UUID" }
     _%>
@@ -298,10 +315,11 @@ public class <%= entityClass %> implements Serializable {
         this.id = id;
     }
 <%_ for (idx in fields) {
-        const fieldType = fields[idx].fieldType;
-        const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
-        const fieldName = fields[idx].fieldName;
-        const fieldInJavaBeanMethod = fields[idx].fieldInJavaBeanMethod; _%>
+    if(!fields[idx].primaryKey){
+    const fieldType = fields[idx].fieldType;
+    const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
+    const fieldName = fields[idx].fieldName;
+    const fieldInJavaBeanMethod = fields[idx].fieldInJavaBeanMethod; _%>
 
     <%_ if (fieldTypeBlobContent !== 'text') { _%>
     public <%= fieldType %> <% if (fieldType.toLowerCase() === 'boolean') { %>is<% } else { %>get<%_ } _%><%= fieldInJavaBeanMethod %>() {
@@ -346,6 +364,7 @@ public class <%= entityClass %> implements Serializable {
         this.<%= fieldName %>ContentType = <%= fieldName %>ContentType;
     }
     <%_ } _%>
+<%_ } _%>
 <%_ } _%>
 <%_
     for (idx in relationships) {
@@ -443,14 +462,16 @@ public class <%= entityClass %> implements Serializable {
         return "<%= entityClass %>{" +
             "id=" + getId() +
             <%_ for (idx in fields) {
-                const fieldType = fields[idx].fieldType;
-                const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
-                const fieldName = fields[idx].fieldName;
-                const fieldInJavaBeanMethod = fields[idx].fieldInJavaBeanMethod;
-                const isNumeric = ['integer', 'long', 'float', 'double', 'bigdecimal'].includes(fieldType.toLowerCase()); _%>
+                if(!fields[idx].primaryKey){
+                    const fieldType = fields[idx].fieldType;
+                    const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
+                    const fieldName = fields[idx].fieldName;
+                    const fieldInJavaBeanMethod = fields[idx].fieldInJavaBeanMethod;
+                    const isNumeric = ['integer', 'long', 'float', 'double', 'bigdecimal'].includes(fieldType.toLowerCase()); _%>
             ", <%= fieldName %>=<% if (! isNumeric) {%>'<% } %>" + <% if (fieldType.toLowerCase() === 'boolean') { %>is<% } else { %>get<% } %><%= fieldInJavaBeanMethod %>() <% if (! isNumeric) { %>+ "'" <% } %>+
-                <%_ if ((fieldType === 'byte[]' || fieldType === 'ByteBuffer') && fieldTypeBlobContent !== 'text') { _%>
+                    <%_ if ((fieldType === 'byte[]' || fieldType === 'ByteBuffer') && fieldTypeBlobContent !== 'text') { _%>
             ", <%= fieldName %>ContentType='" + get<%= fieldInJavaBeanMethod %>ContentType() + "'" +
+                    <%_ } _%>
                 <%_ } _%>
             <%_ } _%>
             "}";

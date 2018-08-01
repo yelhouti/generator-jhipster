@@ -22,7 +22,23 @@ import <%=packageName%>.domain.*;
 import <%=packageName%>.service.dto.<%= entityClass %>DTO;
 
 import org.mapstruct.*;
-
+<%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
 /**
  * Mapper for the entity <%= entityClass %> and its DTO <%= entityClass %>DTO.
  */
@@ -38,14 +54,20 @@ public interface <%= entityClass %>Mapper extends EntityMapper<<%= entityClass %
 <%_
 // entity -> DTO mapping
 var renMapAnotEnt = false; //Render Mapping Annotation during Entity to DTO conversion?
+for (idx in idFields) {
+_%>
+    @Mapping(source = "id.<%= idFields[idx].fieldName %>", target = "<%= idFields[idx].fieldName %>")
+<%_
+}
 for (idx in relationships) {
     const relationshipType = relationships[idx].relationshipType;
     const relationshipName = relationships[idx].relationshipName;
     const ownerSide = relationships[idx].ownerSide;
     if (relationshipType === 'many-to-one' || (relationshipType === 'one-to-one' && ownerSide === true)) {
         renMapAnotEnt = true;
-_%>
+        if(!relationships[idx].primaryKey){ _%>
     @Mapping(source = "<%= relationshipName %>.id", target = "<%= relationships[idx].relationshipFieldName %>Id")
+<%_ } _%>
             <%_ if (relationships[idx].otherEntityFieldCapitalized !='Id' && relationships[idx].otherEntityFieldCapitalized !== '') { _%>
     @Mapping(source = "<%= relationshipName %>.<%= relationships[idx].otherEntityField %>", target = "<%= relationships[idx].relationshipFieldName %><%= relationships[idx].otherEntityFieldCapitalized %>")
             <%_ } _%>
@@ -58,6 +80,11 @@ _%>
 <%_
 // DTO -> entity mapping
 var renMapAnotDto = false;  //Render Mapping Annotation during DTO to Entity conversion?
+for (idx in idFields) {
+_%>
+    @Mapping(source = "<%= idFields[idx].fieldName %>", target = "id.<%= idFields[idx].fieldName %>")
+<%_
+}
 for (idx in relationships) {
     const relationshipType = relationships[idx].relationshipType;
     const relationshipName = relationships[idx].relationshipName;
@@ -80,7 +107,7 @@ _%>
     <%_ } _%>
     <%_ if(databaseType === 'sql') { _%>
 
-    default <%= entityClass %> fromId(<%= (typeof id === 'undefined')?'Long':(entityClass+'Id') %> id) {
+    default <%= entityClass %> fromId(<%= ( typeof id === 'undefined' && primaryKeyCount == 0)?'Long':(entityClass+'Id') %> id) {
         if (id == null) {
             return null;
         }

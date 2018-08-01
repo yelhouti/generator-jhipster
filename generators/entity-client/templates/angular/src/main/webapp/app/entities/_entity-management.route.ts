@@ -17,6 +17,23 @@
  limitations under the License.
 -%>
 <%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
 const i18nToLoad = [entityInstance];
 for (const idx in fields) {
     if (fields[idx].fieldIsEnum === true) {
@@ -83,7 +100,11 @@ export const <%= entityInstance %>Route: Routes = [
         },
         canActivate: [UserRouteAccessService]
     }, {
+    <%_ if(primaryKeyCount===0) { _%>
         path: '<%= entityUrl %>/:id',
+    <%_ } else { _%>
+        path: '<%= entityUrl %>/<%- idFields.map(f=>":"+f.fieldName).join("/") -%>',
+    <%_ } _%>
         component: <%= entityAngularName %>DetailComponent,
         data: {
             authorities: ['ROLE_USER'],
@@ -105,7 +126,11 @@ export const <%= entityInstance %>PopupRoute: Routes = [
         outlet: 'popup'
     },
     {
+    <%_ if(primaryKeyCount===0) { _%>
         path: '<%= entityUrl %>/:id/edit',
+    <%_ } else { _%>
+        path: '<%= entityUrl %>/<%- idFields.map(f=>":"+f.fieldName).join("/") -%>/edit',
+    <%_ } _%>
         component: <%= entityAngularName %>PopupComponent,
         data: {
             authorities: ['ROLE_USER'],
@@ -115,7 +140,11 @@ export const <%= entityInstance %>PopupRoute: Routes = [
         outlet: 'popup'
     },
     {
+    <%_ if(primaryKeyCount===0) { _%>
         path: '<%= entityUrl %>/:id/delete',
+    <%_ } else { _%>
+        path: '<%= entityUrl %>/<%- idFields.map(f=>":"+f.fieldName).join("/") -%>/delete',
+    <%_ } _%>
         component: <%= entityAngularName %>DeletePopupComponent,
         data: {
             authorities: ['ROLE_USER'],

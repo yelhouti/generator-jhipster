@@ -17,6 +17,23 @@
  limitations under the License.
 -%>
 <%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
 const i18nToLoad = [entityInstance];
 for (const idx in fields) {
     if (fields[idx].fieldIsEnum === true) {
@@ -53,8 +70,13 @@ export class <%= entityAngularName %>DeleteDialogComponent {
         this.activeModal.dismiss('cancel');
     }
 
+<%_ if(primaryKeyCount===0) { _%>
     confirmDelete(id: <% if (pkType === 'String') { %>string<% } else { %>number<% } %>) {
         this.<%= entityInstance %>Service.delete(id).subscribe((response) => {
+<%_ } else { _%>
+    confirmDelete(<%- idFields.map(f=>f.fieldName+": "+((f.fieldType==='String')?'string':'number')).join(", ") -%>) {
+        this.<%= entityInstance %>Service.delete(<%- idFields.map(f=>f.fieldName).join(", ") -%>).subscribe((response) => {
+<%_ } _%>
             this.eventManager.broadcast({
                 name: '<%= entityInstance %>ListModification',
                 content: 'Deleted an <%= entityInstance %>'
@@ -80,7 +102,11 @@ export class <%= entityAngularName %>DeletePopupComponent implements OnInit, OnD
     ngOnInit() {
         this.routeSub = this.route.params.subscribe((params) => {
             this.<%= entityInstance %>PopupService
+            <%_ if(primaryKeyCount===0) { _%>
                 .open(<%= entityAngularName %>DeleteDialogComponent as Component, params['id']);
+            <%_ } else { _%>
+                .open(<%= entityAngularName %>DeleteDialogComponent as Component, <%- idFields.map(f=>"params['"+f.fieldName+"']").join(", ") -%>);
+            <%_ } _%>
         });
     }
 

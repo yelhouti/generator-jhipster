@@ -27,11 +27,11 @@ package <%=packageName%>.service<% if (service === 'serviceImpl') { %>.impl<% } 
     const entityToDtoReference = mapper + '::'+ 'toDto';
     const repository = entityInstance  + 'Repository';
     const searchRepository = entityInstance  + 'SearchRepository';
-    const idClass=(typeof id==='undefined')?pkType:(entityClass+"Id")
+    const idClass=(primaryKeyCount <= 1)?pkType:(entityClass+"Id")
     if (service === 'serviceImpl') { %>
 import <%=packageName%>.service.<%= entityClass %>Service;<% } %>
 import <%=packageName%>.domain.<%= entityClass %>;
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
 import <%=packageName%>.domain.<%=entityClass%>Id;
 <%_ } _%>
 import <%=packageName%>.repository.<%= entityClass %>Repository;<% if (searchEngine === 'elasticsearch') { %>

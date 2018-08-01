@@ -17,6 +17,23 @@
  limitations under the License.
 -%>
 <%_
+idFields = []
+for (idx in relationships){
+    if(relationships[idx].primaryKey){
+        let field={};
+        //TODO set field from relashionship
+        field.fieldType = "Long"
+        field.fieldName = relationships[idx].relationshipName+"Id"
+        idFields.push(field);
+    }
+}
+for (idx in fields){
+    if(fields[idx].primaryKey){
+        idFields.push(fields[idx]);
+    }
+}
+_%>
+<%_
     let hasDate = false;
     if (fieldsContainInstant || fieldsContainZonedDateTime || fieldsContainLocalDate) {
         hasDate = true;
@@ -69,9 +86,13 @@ export class <%= entityAngularName %>Service {
         return this.http.put<<%= entityAngularName %>>(this.resourceUrl, copy, { observe: 'response' })
             .map((res: EntityResponseType) => this.convertResponse(res));
     }
-
+<%_ if(primaryKeyCount===0) { _%>
     find(id: <% if (pkType === 'String') { %>string<% } else { %>number<% } %>): Observable<EntityResponseType> {
         return this.http.get<<%= entityAngularName %>>(`${this.resourceUrl}/${id}`, { observe: 'response'})
+<%_ } else { _%>
+    find(<%- idFields.map(f=>f.fieldName+": "+((f.fieldType==='String')?'string':'number')).join(", ") -%>): Observable<EntityResponseType> {
+        return this.http.get<<%= entityAngularName %>>(`${this.resourceUrl}/<%- idFields.map(f=>"${"+f.fieldName+"}").join(",") -%>`, { observe: 'response'})
+<%_ } _%>
             .map((res: EntityResponseType) => this.convertResponse(res));
     }
 
@@ -80,9 +101,13 @@ export class <%= entityAngularName %>Service {
         return this.http.get<<%= entityAngularName %>[]>(this.resourceUrl, { params: options, observe: 'response' })
             .map((res: HttpResponse<<%= entityAngularName %>[]>) => this.convertArrayResponse(res));
     }
-
+<%_ if(primaryKeyCount===0) { _%>
     delete(id: <% if (pkType === 'String') { %>string<% } else { %>number<% } %>): Observable<HttpResponse<any>> {
         return this.http.delete<any>(`${this.resourceUrl}/${id}`, { observe: 'response'});
+<%_ } else { _%>
+    delete(<%- idFields.map(f=>f.fieldName+": "+((f.fieldType==='String')?'string':'number')).join(", ") -%>): Observable<HttpResponse<any>> {
+        return this.http.delete<any>(`${this.resourceUrl}/<%- idFields.map(f=>"${"+f.fieldName+"}").join(",") -%>`, { observe: 'response'});
+<%_ } _%>
     }
     <%_ if(searchEngine === 'elasticsearch') { _%>
 

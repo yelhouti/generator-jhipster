@@ -24,7 +24,7 @@ import <%=packageName%>.service.dto.<%= entityClass %>DTO;
 <%_ } else { _%>
 import <%=packageName%>.domain.<%= entityClass %>;
 <%_ } _%>
-<%_ if(typeof id !== 'undefined'){ _%>
+<%_ if(primaryKeyCount > 1){ _%>
 import <%=packageName%>.domain.<%=entityClass%>Id;
 <%_ } _%>
 <%_ if (pagination !== 'no') { _%>
@@ -34,7 +34,7 @@ import org.springframework.data.domain.Pageable;
 <%_ if (pagination === 'no' || fieldsContainNoOwnerOneToOne === true) { _%>
 import java.util.List;
 <%_ } _%>
-<% idClass=(typeof id==='undefined')?pkType:(entityClass+"Id") %>
+<% idClass=(primaryKeyCount <= 1)?pkType:(entityClass+"Id") %>
 
 /**
  * Service Interface for managing <%= entityClass %>.
