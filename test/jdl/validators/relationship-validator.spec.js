@@ -168,27 +168,6 @@ describe('RelationshipValidator', () => {
                     });
                 });
             });
-            context(`when having a ${MANY_TO_ONE} relationship`, () => {
-                context('when having a bidirectional relationship', () => {
-                    let relationship;
-
-                    before(() => {
-                        relationship = new JDLRelationship({
-                            from: 'A',
-                            to: 'B',
-                            type: MANY_TO_ONE,
-                            injectedFieldInFrom: 'b',
-                            injectedFieldInTo: 'a',
-                        });
-                    });
-
-                    it('should fail', () => {
-                        expect(() => validator.validate(relationship)).to.throw(
-                            /^In the Many-to-One relationship from A to B, only unidirectionality is supported, you should either create a bidirectional One-to-Many relationship or remove the injected field in the destination entity instead\.$/
-                        );
-                    });
-                });
-            });
             context(`when having a ${MANY_TO_MANY} relationship`, () => {
                 context('when not having an bidirectional relationship', () => {
                     let relationship1;
