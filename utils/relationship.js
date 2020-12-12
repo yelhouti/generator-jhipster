@@ -51,6 +51,10 @@ function prepareRelationshipForTemplates(entityWithConfig, relationship, generat
 
     relationship.otherEntityIsEmbedded = otherEntityData.embedded;
 
+    computeRelationshipOtherEntityFields(relationship);
+
+    relationship.mapperName = relationship.otherEntityField + (relationship.collection ? 'Set' : '');
+
     // Look for fields at the other other side of the relationship
     if (otherEntityData.relationships) {
         let otherRelationship;
@@ -114,15 +118,6 @@ function prepareRelationshipForTemplates(entityWithConfig, relationship, generat
             generator.debug(`Entity ${entityName}: Could not find the other side of the relationship ${stringify(relationship)}`);
         }
         relationship.otherRelationship = otherRelationship;
-    }
-
-    if (relationship.otherEntity && relationship.otherEntityField) {
-        relationship.relatedField = otherEntityData.fields.find(field => field.fieldName === relationship.otherEntityField);
-        if (relationship.relatedField) {
-            relationship.otherEntityFieldCapitalized = relationship.relatedField.fieldNameCapitalized;
-        } else {
-            relationship.otherEntityFieldCapitalized = _.upperFirst(relationship.otherEntityField);
-        }
     }
 
     if (relationship.otherEntityRelationshipName !== undefined) {
@@ -254,6 +249,32 @@ function prepareRelationshipForTemplates(entityWithConfig, relationship, generat
     return relationship;
 }
 
+function computeRelationshipOtherEntityFields(relationship) {
+    if (!relationship.otherEntityFields) {
+        relationship.otherEntityFields = [];
+        if (!relationship.otherEntityField) {
+            relationship.otherEntityField = relationship.otherEntity.primaryKey.composite ? 'id' : relationship.otherEntity.primaryKey.name;
+        }
+        if (relationship.otherEntityField) {
+            const field = relationship.otherEntity.fields.find(field => field.fieldName === relationship.otherEntityField);
+            if (field) {
+                relationship.otherEntityFields.push({
+                    field,
+                    path: [relationship.relationshipName],
+                });
+            }
+        }
+        relationship.otherEntity.relationships
+            .filter(r => r.id) // Only many-to-one (no one-to-one) since otherEntityField is enough in that case
+            .forEach(r => {
+                computeRelationshipOtherEntityFields(r);
+                relationship.otherEntityFields.push(
+                    ...r.otherEntityFields.map(f => ({ field: f.field, path: [r.relationshipName, ...f.path] }))
+                );
+            });
+    }
+}
+
 function relationshipToReference(entity, relationship, pathPrefix = []) {
     const collection = relationship.relationshipType === 'one-to-many' || relationship.relationshipType === 'many-to-many';
     const name = collection ? relationship.relationshipNamePlural : relationship.relationshipName;
@@ -267,6 +288,7 @@ function relationshipToReference(entity, relationship, pathPrefix = []) {
         name,
         nameCapitalized: collection ? relationship.relationshipNameCapitalizedPlural : relationship.relationshipNameCapitalized,
         get type() {
+            // checking if primaryKey exists to avoid problem with embedded, but also diffChangeLog that does not use reference for oldSharedEntities
             return relationship.otherEntity.primaryKey ? relationship.otherEntity.primaryKey.type : undefined;
         },
         path: [...pathPrefix, name],

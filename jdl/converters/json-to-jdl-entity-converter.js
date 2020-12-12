@@ -28,7 +28,7 @@ const JDLBinaryOption = require('../models/jdl-binary-option');
 const { CommonDBTypes } = require('../jhipster/field-types');
 const { OptionNames } = require('../jhipster/application-options');
 const { ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY } = require('../jhipster/relationship-types');
-const { JPA_DERIVED_IDENTIFIER } = require('../jhipster/relationship-options');
+const { ID } = require('../jhipster/relationship-options');
 const { FILTER, NO_FLUENT_METHOD, READ_ONLY, EMBEDDED } = require('../jhipster/unary-options');
 const {
     ANGULAR_SUFFIX,
@@ -296,8 +296,8 @@ function getRelationshipOptions(relationship) {
         source: {},
         destination: {},
     };
-    if (relationship.useJPADerivedIdentifier) {
-        options[JPA_DERIVED_IDENTIFIER] = true;
+    if (relationship.useJPADerivedIdentifier || relationship.id) {
+        options[ID] = true;
     }
     return options;
 }

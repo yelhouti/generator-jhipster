@@ -24,27 +24,28 @@
             <div>
                 <<%= jhiPrefixDashed %>-alert-error></<%= jhiPrefixDashed %>-alert-error>
 <%_ for (idx in fields) {
-    const fieldName = fields[idx].fieldName;
-    const fieldNameCapitalized = fields[idx].fieldNameCapitalized;
-    const fieldNameHumanized = fields[idx].fieldNameHumanized;
-    const fieldType = fields[idx].fieldType;
-    const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
-    const id = !!fields[idx].id;
-    const readonly = !!fields[idx].id || !!fields[idx].readonly;
-    let fieldInputType = 'text';
-    let ngModelOption = '';
-    const translationKey = fields[idx].fieldTranslationKey;
-    if (['Integer', 'Long', 'Float', 'Double', 'BigDecimal'].includes(fieldType)) {
-        fieldInputType = 'number';
-    } else if (fieldType === 'LocalDate') {
-        fieldInputType = 'date';
-    } else if (['Instant', 'ZonedDateTime'].includes(fieldType)) {
-        fieldInputType = 'datetime-local';
-    } else if (fieldType === 'Boolean') {
-        fieldInputType = 'checkbox';
-    } else if (['byte[]', 'ByteBuffer'].includes(fieldType) && fieldTypeBlobContent !== 'text') {
-        fieldInputType = 'hidden';
-    }
+    if (!fields[idx].derivedId) {
+        const fieldName = fields[idx].fieldName;
+        const fieldNameCapitalized = fields[idx].fieldNameCapitalized;
+        const fieldNameHumanized = fields[idx].fieldNameHumanized;
+        const fieldType = fields[idx].fieldType;
+        const fieldTypeBlobContent = fields[idx].fieldTypeBlobContent;
+        const id = !!fields[idx].id;
+        const readonly = !!fields[idx].id || !!fields[idx].readonly;
+        let fieldInputType = 'text';
+        let ngModelOption = '';
+        const translationKey = fields[idx].fieldTranslationKey;
+        if (['Integer', 'Long', 'Float', 'Double', 'BigDecimal'].includes(fieldType)) {
+            fieldInputType = 'number';
+        } else if (fieldType === 'LocalDate') {
+            fieldInputType = 'date';
+        } else if (['Instant', 'ZonedDateTime'].includes(fieldType)) {
+            fieldInputType = 'datetime-local';
+        } else if (fieldType === 'Boolean') {
+            fieldInputType = 'checkbox';
+        } else if (['byte[]', 'ByteBuffer'].includes(fieldType) && fieldTypeBlobContent !== 'text') {
+            fieldInputType = 'hidden';
+        }
 _%>
 
                 <div class="form-group"<% if (id) { %> [hidden]="editForm.get('<%= fieldName %>')?.value == null"<% } %>>
@@ -106,7 +107,7 @@ _%>
                            formControlName="<%= fieldName %>"<% if (readonly) { %> readonly<% } %>/>
             <%_ if (['byte[]', 'ByteBuffer'].includes(fieldType) && fieldTypeBlobContent !== 'text') { _%>
                     <input type="hidden" class="form-control" name="<%= fieldName %>ContentType" id="field_<%= fieldName %>ContentType"
-                           formControlName="<%= fieldName %>ContentType" />
+                           formControlName="<%= fieldName %>ContentType" <% if (readonly) { %> [readOnly]="edit"<% } %>/>
             <%_ } _%>
         <%_ } _%>
     <%_ } _%>
@@ -163,8 +164,10 @@ _%>
                     </div>
     <%_ } _%>
                 </div>
+    <%_ } _%>
 <%_ } _%>
 <%_ for (idx in relationships) {
+    const id = relationships[idx].id;
     const relationship = relationships[idx];
     const relationshipType = relationships[idx].relationshipType;
     const ownerSide = relationships[idx].ownerSide;
@@ -175,35 +178,26 @@ _%>
     const relationshipNameHumanized = relationships[idx].relationshipNameHumanized;
     const relationshipFieldName = relationships[idx].relationshipFieldName;
     const relationshipFieldNamePlural = relationships[idx].relationshipFieldNamePlural;
-    const otherEntityField = relationships[idx].otherEntityField;
-    const otherEntityFieldCapitalized = relationships[idx].otherEntityFieldCapitalized;
     const relationshipRequired = relationships[idx].relationshipRequired;
     const translationKey = `${i18nKeyPrefix}.${relationshipName}`;
+    const otherEntity = relationships[idx].otherEntity;
+    const trackBy = otherEntity.primaryKey.composite ? `trackBy${otherEntityNameCapitalized}Id` : `trackBy${otherEntity.primaryKey.nameCapitalized}`;
+    const optionName = `${relationship.otherEntityFields.map(f => {
+        const names = [`${otherEntityName}Option`, ...f.path.slice(1), f.field.fieldName];
+        return `{{ ${names.join('!.')} }}`
+    }).join(' | ')}`;
 _%>
-    <%_ if (relationshipType === 'many-to-one' || (relationshipType === 'one-to-one' && ownerSide === true && otherEntityName === 'user')) { _%>
+    <%_ if (relationshipType === 'many-to-one' || (relationshipType === 'one-to-one' && ownerSide === true)) { _%>
 
                 <div class="form-group">
                     <label class="form-control-label" <%= jhiPrefix %>Translate="<%= translationKey %>" for="field_<%= relationshipName %>"><%= relationshipNameHumanized %></label>
-                    <select class="form-control" id="field_<%= relationshipName %>" data-cy="<%= relationshipFieldName %>" name="<%= relationshipName %>" formControlName="<%= relationshipFieldName %>">
-            <%_ if (!relationshipRequired) { _%>
+                    <select class="form-control" id="field_<%= relationshipName %>" data-cy="<%= relationshipFieldName %>" name="<%= relationshipName %>" formControlName="<%= relationshipFieldName %>" <% if (id) { %> [attr.disabled]="<%- primaryKey.autoGenerated ? `editForm.get('${primaryKey.name}')!.value` : 'edit' %> ? true : null"<% } %>>
+            <%_ if (!relationshipRequired && !id) { _%>
                         <option [ngValue]="null"></option>
             <%_ } else { _%>
                         <option *ngIf="!editForm.get('<%= relationshipName %>')!.value" [ngValue]="null" selected></option>
             <%_ } _%>
-                        <option [ngValue]="<%= otherEntityName %>Option.id === editForm.get('<%= relationshipFieldName %>')!.value?.id ? editForm.get('<%= relationshipFieldName %>')!.value : <%= otherEntityName %>Option" *ngFor="let <%= otherEntityName %>Option of <%= otherEntityNamePlural.toLowerCase() %>; trackBy: trackById">{{ <%= otherEntityName %>Option.<%= otherEntityField %> }}</option>
-                    </select>
-                </div>
-    <%_ } else if (relationshipType === 'one-to-one' && ownerSide === true) { _%>
-
-                <div class="form-group">
-                    <label class="form-control-label" <%= jhiPrefix %>Translate="<%= translationKey %>" for="field_<%= relationshipName %>"><%= relationshipNameHumanized %></label>
-                    <select class="form-control" id="field_<%= relationshipName %>" data-cy="<%= relationshipFieldName %>" name="<%= relationshipName %>" formControlName="<%= relationshipName %>">
-            <%_ if (!relationshipRequired) { _%>
-                        <option [ngValue]="null"></option>
-            <%_ } else { _%>
-                        <option *ngIf="editForm.get([<%- buildAngularFormPath(relationship.reference) %>])?.value == null" [ngValue]="null" selected></option>
-            <%_ } _%>
-                        <option [ngValue]="<%= otherEntityName %>Option.id === editForm.get('<%= relationshipFieldName %>')!.value?.id ? editForm.get('<%= relationshipFieldName %>')!.value : <%= otherEntityName %>Option" *ngFor="let <%= otherEntityName %>Option of <%= relationshipFieldNamePlural.toLowerCase() %>; trackBy: trackById">{{ <%= otherEntityName %>Option.<%= otherEntityField %> }}</option>
+                        <option [ngValue]="<%- relationship.otherEntity.primaryKey.references.map(pk => `${otherEntityName}Option?.${pk.nameDottedAsserted} === editForm.get('${relationshipFieldName}')!.value?.${pk.nameDottedAsserted}`).join(' && ')  %> ? editForm.get('<%= relationshipFieldName %>')!.value : <%= otherEntityName %>Option" *ngFor="let <%= otherEntityName %>Option of <%= otherEntityNamePlural.toLowerCase() %>; trackBy: <%= trackBy %>"><%= optionName %></option>
                     </select>
                 </div>
     <%_ } else if (relationshipType === 'many-to-many' && ownerSide === true) { _%>
@@ -211,7 +205,7 @@ _%>
                 <div class="form-group">
                     <label <%= jhiPrefix %>Translate="<%= translationKey %>" for="field_<%= relationshipFieldNamePlural %>"><%= relationshipNameHumanized %></label>
                     <select class="form-control" id="field_<%= relationshipFieldNamePlural %>" data-cy="<%= relationshipFieldName %>" multiple name="<%= relationshipFieldNamePlural %>" formControlName="<%= relationshipFieldNamePlural %>">
-                        <option [ngValue]="getSelected(<%= otherEntityName %>Option, editForm.get('<%= relationshipFieldNamePlural %>')!.value)" *ngFor="let <%= otherEntityName %>Option of <%= otherEntityNamePlural.toLowerCase() %>; trackBy: trackById">{{ <%= otherEntityName %>Option.<%= otherEntityField %> }}</option>
+                        <option [ngValue]="getSelected<%- relationship.getSelectedSuffix %>(<%= otherEntityName %>Option, editForm.get('<%= relationshipFieldNamePlural %>')!.value)" *ngFor="let <%= otherEntityName %>Option of <%= otherEntityNamePlural.toLowerCase() %>; trackBy: <%= trackBy %>"><%= optionName %></option>
                     </select>
                 </div>
     <%_ } _%>

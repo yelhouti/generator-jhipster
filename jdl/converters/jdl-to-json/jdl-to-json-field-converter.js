@@ -119,12 +119,14 @@ function getFieldValidations(jdlField) {
 }
 
 function getOptionsForField(jdlField) {
-    const fieldOptions = {
-        options: {},
-    };
-    fieldOptions.options = {};
+    const fieldOptions = {};
     jdlField.forEachOption(([key, value]) => {
-        fieldOptions.options[key] = value;
+        if (key === 'id') {
+            fieldOptions.id = true;
+        } else {
+            fieldOptions.options = fieldOptions.options || {};
+            fieldOptions.options[key] = value;
+        }
     });
     return fieldOptions;
 }

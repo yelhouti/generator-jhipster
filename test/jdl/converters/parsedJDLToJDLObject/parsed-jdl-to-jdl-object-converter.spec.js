@@ -245,6 +245,18 @@ describe('ParsedJDLToJDLObjectConverter', () => {
                         })
                     );
                 });
+                it('should add it if it has the id annotation', () => {
+                    expect(jdlObject.entities.B).to.deep.eq(
+                        new JDLEntity({
+                            name: 'B',
+                            tableName: 'B',
+                            fields: {
+                                id: new JDLField({ name: 'id', type: FieldTypes.STRING, options: { id: true } }),
+                                email: new JDLField({ name: 'email', type: FieldTypes.STRING }),
+                            },
+                        })
+                    );
+                });
             });
             context('with User entity as destination for a relationship', () => {
                 let jdlObject;

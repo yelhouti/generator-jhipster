@@ -33,7 +33,7 @@ module.exports = class extends BaseBlueprintGenerator {
 
         if (this.jhipsterConfig.clientFramework !== ANGULAR) {
             // Remove fields with custom ids, drop once templates supports them
-            this.entity = { ...this.entity, fields: this.entity.fieldsNoId };
+            this.entity = { ...this.entity, fields: this.entity.fields.filter(f => !f.id) };
         }
 
         utils.copyObjectProps(this, this.entity);
@@ -46,7 +46,7 @@ module.exports = class extends BaseBlueprintGenerator {
     _preparing() {
         return {
             setup() {
-                this.tsKeyType = this.getTypescriptKeyType(this.primaryKeyType);
+                this.tsKeyType = this.getTypescriptKeyType(this.primaryKey.type);
             },
         };
     }

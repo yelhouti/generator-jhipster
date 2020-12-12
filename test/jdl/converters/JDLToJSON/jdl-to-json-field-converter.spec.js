@@ -303,7 +303,7 @@ describe('JDLToJSONFieldConverter', () => {
                         type: CommonDBTypes.STRING,
                         comment: 'The best field',
                         options: {
-                            id: 42,
+                            toto: 42,
                         },
                     });
                     entityA.addField(firstFieldForA);
@@ -318,7 +318,7 @@ describe('JDLToJSONFieldConverter', () => {
                         fieldType: 'String',
                         javadoc: 'The best field',
                         options: {
-                            id: 42,
+                            toto: 42,
                         },
                     });
                 });

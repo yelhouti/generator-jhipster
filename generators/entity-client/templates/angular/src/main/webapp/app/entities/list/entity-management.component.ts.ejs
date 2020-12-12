@@ -57,7 +57,13 @@ export class <%= entityAngularName %>Component implements OnInit {
     <%_ } _%>
 
     trackId(index: number, item: I<%= entityAngularName %>): <%= tsKeyType %> {
-        return item.id!;
+<%_ if (primaryKey.references.length === 1) {
+    // splitting cases to avoid converting number keys to string and having useless `
+_%>
+        return item.<%= primaryKey.name %>!;
+<%_ } else { _%>
+        return `<%- entity.primaryKey.references.map(pk => `\${item.${pk.nameDottedAsserted}}`).join(",")%>`;
+<%_ } _%>
     }
 
     <%_ if (fieldsContainBlob) { _%>
@@ -94,10 +100,17 @@ export class <%= entityAngularName %>Component implements OnInit {
 
 <%_ if (pagination !== 'no') { _%>
     sort(): string[] {
+    <%_ if (primaryKey.references.length === 1) { _%>
         const result = [this.predicate + ',' + (this.ascending ? 'asc' : 'desc')];
-        if (this.predicate !== 'id') {
-            result.push('id');
+        if (this.predicate !== '<%= primaryKey.name %>') {
+            result.push('<%= primaryKey.name %>');
         }
+    <%_ } else { _%>
+        const result = [];
+        if (this.predicate.length) {
+            result.push(this.predicate + ',' + (this.ascending ? 'asc' : 'desc'));
+        }
+    <%_ } _%>
         return result;
     }
 

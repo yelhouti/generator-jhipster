@@ -20,8 +20,9 @@
 const _ = require('lodash');
 const { MANY_TO_MANY, MANY_TO_ONE, ONE_TO_MANY, ONE_TO_ONE } = require('../../jhipster/relationship-types');
 const { REQUIRED } = require('../../jhipster/validations');
-const { JPA_DERIVED_IDENTIFIER } = require('../../jhipster/relationship-options');
+const { JPA_DERIVED_IDENTIFIER, ID } = require('../../jhipster/relationship-options');
 const { camelCase, lowerFirst } = require('../../utils/string-utils');
+const logger = require('../../utils/objects/logger');
 
 const USER = 'user';
 const AUTHORITY = 'authority';
@@ -160,8 +161,16 @@ function setOptionsForRelationshipSourceSide(relationshipToConvert, convertedRel
     convertedRelationship.options = convertedRelationship.options || {};
     relationshipToConvert.forEachGlobalOption((optionName, optionValue) => {
         if (optionName === JPA_DERIVED_IDENTIFIER) {
+            logger.warn(`${JPA_DERIVED_IDENTIFIER} is deprecated use @id instead`);
             if (convertedRelationship.ownerSide) {
-                convertedRelationship.useJPADerivedIdentifier = optionValue;
+                convertedRelationship.id = true;
+            }
+        } else if (optionName === ID) {
+            if (
+                convertedRelationship.relationshipType === 'many-to-one' ||
+                (convertedRelationship.ownerSide && convertedRelationship.relationshipType === 'one-to-one')
+            ) {
+                convertedRelationship.id = true;
             }
         } else {
             convertedRelationship.options[optionName] = optionValue;

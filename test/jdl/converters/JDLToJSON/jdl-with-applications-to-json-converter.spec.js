@@ -820,7 +820,7 @@ describe('JDLWithApplicationsToJSONConverter', () => {
                             type: CommonDBTypes.STRING,
                             comment: 'The best field',
                             options: {
-                                id: 42,
+                                toto: 42,
                             },
                         });
                         entityA.addField(firstFieldForA);
@@ -848,7 +848,7 @@ describe('JDLWithApplicationsToJSONConverter', () => {
                                     fieldType: 'String',
                                     javadoc: 'The best field',
                                     options: {
-                                        id: 42,
+                                        toto: 42,
                                     },
                                 },
                             ],
@@ -1071,7 +1071,7 @@ describe('JDLWithApplicationsToJSONConverter', () => {
                                 ownerSide: true,
                                 relationshipName: 'b',
                                 relationshipType: 'one-to-one',
-                                useJPADerivedIdentifier: true,
+                                id: true,
                             });
                         });
                     });

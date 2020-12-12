@@ -22,18 +22,20 @@ import { Resolve, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { Observable, of, EMPTY } from 'rxjs';
 import { mergeMap } from 'rxjs/operators';
 
-import { I<%= entityAngularName %>, <%= entityAngularName %> } from 'app/shared/model/<%= entityModelFileName %>.model';
+import { I<%= entityAngularName %> } from 'app/shared/model/<%= entityModelFileName %>.model';
 import { <%= entityAngularName %>Service } from './<%= entityFileName %>.service';
 
 @Injectable({ providedIn: 'root' })
-export class <%= entityAngularName %>RoutingResolveService implements Resolve<I<%= entityAngularName %>> {
+export class <%= entityAngularName %>RoutingResolveService implements Resolve<I<%= entityAngularName %> | null> {
     constructor(private service: <%= entityAngularName %>Service, private router: Router) {}
 
-    resolve(route: ActivatedRouteSnapshot): Observable<I<%= entityAngularName %>> | Observable<never> {
-        const id = route.params['id'];
-        if (id) {
-            return this.service.find(id).pipe(
-                mergeMap((<%= entityInstance %>: HttpResponse<<%= entityAngularName %>>) => {
+    resolve(route: ActivatedRouteSnapshot): Observable<I<%= entityAngularName %> | null> | Observable<never> {
+            <%_ entity.primaryKey.references.forEach(pk => { _%>
+                const <%= pk.name %> = route.params['<%= pk.name %>'] ? route.params['<%= pk.name %>'] : null;
+            <%_ }) _%>
+        if (<%- entity.primaryKey.references.map(pk => pk.name).join(' && ') %>) {
+            return this.service.find(<%- entity.primaryKey.references.map(pk => pk.name).join(', ') %>).pipe(
+                mergeMap((<%= entityInstance %>: HttpResponse<I<%= entityAngularName %>>) => {
                     if (<%= entityInstance %>.body) {
                         return of(<%= entityInstance %>.body);
                     } else {
@@ -43,6 +45,6 @@ export class <%= entityAngularName %>RoutingResolveService implements Resolve<I<
                 })
             );
         }
-        return of(new <%= entityAngularName %>());
+        return of(null);
     }
 }

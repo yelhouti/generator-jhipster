@@ -30,6 +30,12 @@ module.exports = class JDLRelationship {
         if (!RelationshipTypes.exists(merged.type) || !(merged.injectedFieldInFrom || merged.injectedFieldInTo)) {
             throw new Error('A valid type and at least one injected field must be passed to create a relationship.');
         }
+        if (merged.useJPADerivedIdentifier) {
+            logger.warn(
+                `In the One-to-One relationship from ${merged.from} to ${merged.to}, ` +
+                    'jpaDerivedIdentifier is deprecated, please use "id: true" instead.'
+            );
+        }
         if (
             merged.type === RelationshipTypes.ONE_TO_MANY &&
             (!merged.injectedFieldInFrom || !merged.injectedFieldInTo) &&

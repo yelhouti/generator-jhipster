@@ -27,7 +27,7 @@ const BaseBlueprintGenerator = require('../generator-base-blueprint');
 const constants = require('../generator-constants');
 const statistics = require('../statistics');
 const { isReservedClassName, isReservedTableName } = require('../../jdl/jhipster/reserved-keywords');
-const { prepareEntityForTemplates, loadRequiredConfigIntoEntity } = require('../../utils/entity');
+const { prepareEntityForTemplates, loadRequiredConfigIntoEntity, preparePrimaryKeyIdsForTemplate } = require('../../utils/entity');
 const { prepareFieldForTemplates } = require('../../utils/field');
 const { prepareRelationshipForTemplates } = require('../../utils/relationship');
 const { stringify } = require('../../utils');
@@ -463,21 +463,17 @@ class EntityGenerator extends BaseBlueprintGenerator {
                 Object.assign(this.context, this.entityStorage.getAll());
                 loadRequiredConfigIntoEntity(this.context, this.jhipsterConfig);
 
-                if (this.context.fields) {
-                    this.context.fields
-                        .filter(field => field.options)
-                        .forEach(field => {
-                            // Load jdl annotations as default values.
-                            Object.assign(field, field.options);
-                        });
-                }
-
                 if (this.context.relationships) {
                     this.context.relationships
                         .filter(relationship => relationship.options)
                         .forEach(relationship => {
                             // Load jdl annotations as default values.
                             Object.assign(relationship, relationship.options);
+                        });
+                    this.context.relationships
+                        .filter(relationship => relationship.useJPADerivedIdentifier)
+                        .forEach(relationship => {
+                            relationship.id = true;
                         });
                 }
             },
@@ -503,7 +499,6 @@ class EntityGenerator extends BaseBlueprintGenerator {
                 this.context.fields.forEach(field => {
                     prepareFieldForTemplates(entity, field, this);
                 });
-                this.context.fieldsNoId = this.context.fields.filter(field => !field.id);
             },
 
             loadRelationships() {
@@ -517,6 +512,10 @@ class EntityGenerator extends BaseBlueprintGenerator {
                     otherEntity.otherRelationships = otherEntity.otherRelationships || [];
                     otherEntity.otherRelationships.push(relationship);
                 });
+            },
+
+            preparePrimaryKeyIdsForTemplate() {
+                preparePrimaryKeyIdsForTemplate(this.context, this);
             },
         };
     }
@@ -623,13 +622,15 @@ class EntityGenerator extends BaseBlueprintGenerator {
                     relationship => relationship.relationshipEagerLoad
                 );
                 this.context.eagerRelations = this.context.relationships.filter(rel => rel.relationshipEagerLoad);
-                this.context.regularEagerRelations = this.context.eagerRelations.filter(rel => rel.useJPADerivedIdentifier !== true);
+                this.context.regularEagerRelations = this.context.eagerRelations.filter(
+                    rel => !(rel.id && rel.relationshipType === 'one-to-one')
+                );
 
                 this.context.reactiveEagerRelations = this.context.relationships.filter(
                     rel => rel.relationshipType === 'many-to-one' || (rel.relationshipType === 'one-to-one' && rel.ownerSide === true)
                 );
                 this.context.reactiveRegularEagerRelations = this.context.reactiveEagerRelations.filter(
-                    rel => rel.useJPADerivedIdentifier !== true
+                    rel => !(rel.id && rel.relationshipType === 'one-to-one')
                 );
             },
 

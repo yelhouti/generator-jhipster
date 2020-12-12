@@ -2,3 +2,7 @@ entity A {
   id Long,
   email String
 }
+entity B {
+  @id id String,
+  email String
+}

@@ -34,8 +34,8 @@ export class <%= entityAngularName %>DeleteDialogComponent {
         this.activeModal.dismiss();
     }
 
-    confirmDelete(id: <%= tsKeyType %>): void {
-        this.<%= entityInstance %>Service.delete(id).subscribe(() => {
+    confirmDelete(<%= entity.primaryKey.references.map(pk => `${pk.name}: ${this.getTypescriptKeyType(pk.field.fieldType)}`).join(', ') %>): void {
+        this.<%= entityInstance %>Service.delete(<%= entity.primaryKey.references.map(pk => `${pk.name}`).join(', ') %>).subscribe(() => {
             this.activeModal.close('deleted');
         });
     }

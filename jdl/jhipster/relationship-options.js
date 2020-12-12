@@ -19,6 +19,7 @@
 
 const Options = {
     JPA_DERIVED_IDENTIFIER: 'jpaDerivedIdentifier',
+    ID: 'id',
 };
 
 function exists(option) {

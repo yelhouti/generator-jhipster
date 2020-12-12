@@ -17,7 +17,8 @@
  limitations under the License.
 -%>
 <%_
-const tsKeyId = generateTestEntityId(primaryKeyType);
+const tsKeyId = generateTestEntityId(primaryKey);
+const testEntity = generateTestEntity(primaryKey);
 _%>
 jest.mock('@angular/router');
 
@@ -29,7 +30,6 @@ import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 
 import { <%= entityAngularName %>Service } from 'app/entities/<%= entityFolderName %>/<%= entityFileName %>.service';
-import { <%= entityAngularName %> } from 'app/shared/model/<%= entityModelFileName %>.model';
 
 import { <%= entityAngularName %>UpdateComponent } from './<%= entityFileName %>-update.component';
 
@@ -57,7 +57,7 @@ describe('Component Tests', () => {
             it('Should call update service on save for existing entity',
                 fakeAsync(() => {
                     // GIVEN
-                    const entity = new <%= entityAngularName %>(<%- tsKeyId %>);
+                    const entity = <%- testEntity %>;
                     spyOn(service, 'update').and.returnValue(of(new HttpResponse({ body: entity })));
                     comp.updateForm(entity);
                     // WHEN
@@ -65,7 +65,7 @@ describe('Component Tests', () => {
                     tick(); // simulate async
 
                     // THEN
-                    expect(service.update).toHaveBeenCalledWith(entity);
+                    expect(service.update).toHaveBeenCalledWith(jasmine.objectContaining(entity));
                     expect(comp.isSaving).toEqual(false);
                 })
             );
@@ -73,15 +73,14 @@ describe('Component Tests', () => {
             it('Should call create service on save for new entity',
                 fakeAsync(() => {
                     // GIVEN
-                    const entity = new <%= entityAngularName %>();
-                    spyOn(service, 'create').and.returnValue(of(new HttpResponse({ body: entity })));
-                    comp.updateForm(entity);
+                    spyOn(service, 'create').and.returnValue(of(new HttpResponse({ body: null })));
+                    comp.updateForm(null);
                     // WHEN
                     comp.save();
                     tick(); // simulate async
 
                     // THEN
-                    expect(service.create).toHaveBeenCalledWith(entity);
+                    expect(service.create).toHaveBeenCalled();
                     expect(comp.isSaving).toEqual(false);
                 })
             );

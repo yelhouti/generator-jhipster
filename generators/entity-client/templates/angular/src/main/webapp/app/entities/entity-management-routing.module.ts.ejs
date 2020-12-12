@@ -33,15 +33,15 @@ const <%= entityInstance %>Route: Routes = [
     {
         path: '',
         component: <%= entityAngularName %>Component,
-        <%_ if (pagination === 'pagination') { _%>
+        <%_ if (pagination !== 'no') { _%>
         data: {
-            defaultSort: 'id,asc',
+            defaultSort: '<% if (primaryKey.references.length === 1) { %><%= primaryKey.name %>,asc<% } %>',
         },
         <%_ } _%>
         canActivate: [UserRouteAccessService]
     },
     {
-        path: ':id/view',
+        path: '<% if (primaryKey.references.length === 1) { %>:<%= primaryKey.name %>/<% } %>view',
         component: <%= entityAngularName %>DetailComponent,
         resolve: {
             <%= entityInstance %>: <%= entityAngularName %>RoutingResolveService
@@ -58,7 +58,7 @@ const <%= entityInstance %>Route: Routes = [
         canActivate: [UserRouteAccessService]
     },
     {
-        path: ':id/edit',
+        path: '<% if (primaryKey.references.length === 1) { %>:<%= primaryKey.name %>/<% } %>edit',
         component: <%= entityAngularName %>UpdateComponent,
         resolve: {
             <%= entityInstance %>: <%= entityAngularName %>RoutingResolveService

@@ -31,8 +31,6 @@ module.exports = class extends BaseBlueprintGenerator {
         super(args, opts);
 
         this.entity = opts.context;
-        // Remove fields with custom ids, drop once templates supports them
-        this.entity = { ...this.entity, fields: this.entity.fieldsNoId };
 
         utils.copyObjectProps(this, this.entity);
         this.jhipsterContext = opts.jhipsterContext || opts.context;
@@ -112,7 +110,7 @@ module.exports = class extends BaseBlueprintGenerator {
             },
 
             useMapsIdRelation() {
-                const jpaDerivedRelation = this.relationships.find(rel => rel.useJPADerivedIdentifier === true);
+                const jpaDerivedRelation = this.relationships.find(rel => rel.id && rel.relationshipType === 'one-to-one');
                 if (jpaDerivedRelation) {
                     this.isUsingMapsId = true;
                     this.mapsIdAssoc = jpaDerivedRelation;
@@ -134,14 +132,6 @@ module.exports = class extends BaseBlueprintGenerator {
     get preparing() {
         if (useBlueprints) return;
         return this._preparing();
-    }
-
-    /* Private methods used in templates */
-    _getJoinColumnName(relationship) {
-        if (relationship.useJPADerivedIdentifier === true) {
-            return 'id';
-        }
-        return `${this.getColumnName(relationship.relationshipName)}_id`;
     }
 
     _generateSqlSafeName(name) {

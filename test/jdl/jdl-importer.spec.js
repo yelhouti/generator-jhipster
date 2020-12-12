@@ -1120,7 +1120,7 @@ relationship OneToOne {
                 expect(returned.exportedEntities[2].jpaMetamodelFiltering).to.be.true;
                 expect(returned.exportedEntities[2].pagination).to.equal('pagination');
                 expect(returned.exportedEntities[2].myCustomBinaryOption).to.equal('customValue2');
-                expect(returned.exportedEntities[0].fields[0].options.id).to.be.true;
+                expect(returned.exportedEntities[0].fields[0].options.toto).to.be.true;
                 expect(returned.exportedEntities[0].fields[0].options.multiValue).to.deep.equal(['value1', 'value2', 'value3']);
             });
         });

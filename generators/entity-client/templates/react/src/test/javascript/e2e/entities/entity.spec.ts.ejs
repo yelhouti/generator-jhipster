@@ -32,7 +32,7 @@ import path from 'path';
 let openBlockComment = '';
 let closeBlockComment = '';
 for (let relationship of relationships) {
-    if (relationship.relationshipRequired || relationship.useJPADerivedIdentifier) {
+    if (relationship.relationshipRequired || (relationship.id && relationship.relationshipType === 'one-to-one')) {
         openBlockComment = '/* ';
         closeBlockComment = ' */';
         break;
@@ -93,9 +93,9 @@ describe('<%= entityClass %> e2e test', () => {
         await waitUntilDisplayed(<%= entityInstance %>ComponentsPage.table);
         await waitUntilCount(<%= entityInstance %>ComponentsPage.records, beforeRecordsCount + 1);
         expect(await <%= entityInstance %>ComponentsPage.records.count()).to.eq(beforeRecordsCount + 1);
-        
+
         await <%= entityInstance %>ComponentsPage.delete<%= entityClass %>();
-        if(beforeRecordsCount !== 0) { 
+        if(beforeRecordsCount !== 0) {
           await waitUntilCount(<%= entityInstance %>ComponentsPage.records, beforeRecordsCount);
           expect(await <%= entityInstance %>ComponentsPage.records.count()).to.eq(beforeRecordsCount);
         } else {

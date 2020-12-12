@@ -74,8 +74,8 @@ export class <%= entityAngularName %>Service {
     }
     <%_ } _%>
 
-    find(id: <%= tsKeyType %>): Observable<EntityResponseType> {
-        return this.http.get<I<%= entityAngularName %>>(`${this.resourceUrl}/${id}`, { observe: 'response' })
+    find(<%= entity.primaryKey.references.map(pk => `${pk.name}: ${this.getTypescriptKeyType(pk.field.fieldType)}`).join(', ') %>): Observable<EntityResponseType> {
+        return this.http.get<I<%= entityAngularName %>>(`${this.resourceUrl}/<%-entity.primaryKey.references.length === 1 ? '${'+entity.primaryKey.references[0].name+'}' : entity.primaryKey.references.map(pk => pk.name+'=${'+pk.name+'}').join(';')%>`, { observe: 'response' })
             <% if (fieldsContainDate) { %>.pipe(map((res: EntityResponseType) => this.convertDateFromServer(res)))<% } %>;
     }
 
@@ -86,8 +86,8 @@ export class <%= entityAngularName %>Service {
     }
 
     <%_ if (!readOnly) { _%>
-    delete(id: <%= tsKeyType %>): Observable<HttpResponse<{}>> {
-        return this.http.delete(`${this.resourceUrl}/${id}`, { observe: 'response' });
+    delete(<%= entity.primaryKey.references.map(pk => `${pk.name}: ${this.getTypescriptKeyType(pk.field.fieldType)}`).join(', ') %>): Observable<HttpResponse<{}>> {
+        return this.http.delete(`${this.resourceUrl}/<%-entity.primaryKey.references.length === 1 ? '${'+entity.primaryKey.references[0].name+'}' : entity.primaryKey.references.map(pk => pk.name+'=${'+pk.name+'}').join(';')%>`, { observe: 'response' });
     }
     <%_ } _%>
 

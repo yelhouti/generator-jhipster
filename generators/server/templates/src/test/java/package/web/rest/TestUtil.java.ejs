@@ -23,6 +23,7 @@ import com.couchbase.client.core.time.Delay;
 import com.couchbase.client.java.util.retry.Retry;
 <%_ } _%>
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -63,7 +64,9 @@ import java.util.Collection;
 <%_ if (databaseType === 'sql') { _%>
 import java.util.List;
 
+<%_ if (!reactive) { _%>
 import javax.persistence.EntityManager;
+<%_ } _%>
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -73,6 +76,9 @@ import javax.persistence.criteria.Root;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+<%_ } _%>
+<%_ if (databaseType === 'sql' && reactive) { _%>
+import <%= packageName %>.service.EntityManager;
 <%_ } _%>
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,6 +97,7 @@ public final class TestUtil {
     private static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
+        mapper.configure(MapperFeature.USE_ANNOTATIONS, false); // ignores JsonIgnoreProperties for nested composite keys
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         mapper.registerModule(new JavaTimeModule());
         return mapper;
@@ -268,12 +275,16 @@ public final class TestUtil {
      * @return A list of all found objects
      */
     public static <T> List<T> findAll(EntityManager em, Class<T> clss) {
+<%_ if (reactive) { _%>
+        return em.findAll(clss).collectList().block();
+<%_ } else { _%>
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<T> cq = cb.createQuery(clss);
         Root<T> rootEntry = cq.from(clss);
         CriteriaQuery<T> all = cq.select(rootEntry);
         TypedQuery<T> allQuery = em.createQuery(all);
         return allQuery.getResultList();
+<%_ } _%>
     }
 <%_ } _%>
 <%_ if (authenticationType === 'oauth2') { _%>

@@ -133,6 +133,15 @@ public class EntityManager {
     }
 
     /**
+     * Find all the entity with the given type.
+     * @param entityType the entity type which holds the table name.
+     * @return the list of all entities
+     */
+    public <S> Flux<S> findAll(Class<S> entityType) {
+        return db.select().from(entityType).fetch().all();
+    }
+
+    /**
      * Delete all the entity with the given type, and return the number of deletions.
      * @param entityType the entity type which holds the table name.
      * @return the number of deleted entity

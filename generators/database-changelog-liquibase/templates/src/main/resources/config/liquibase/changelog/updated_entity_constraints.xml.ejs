@@ -88,7 +88,7 @@
             if (relationship.shouldWriteRelationship) {
                 const constraintName = getFKConstraintName(entityTableName, relationshipName, prodDatabaseType);
                 let baseColumnName = getColumnName(relationshipName) + '_id';
-                if (relationship.relationshipType === 'one-to-one' && relationship.useJPADerivedIdentifier === true) {
+                if (relationship.relationshipType === 'one-to-one' && relationship.id) {
                     baseColumnName = 'id';
                 } %>
         <addForeignKeyConstraint baseColumnNames="<%= baseColumnName %>"

@@ -60,48 +60,52 @@
                     <%_ } _%>
                 </dd>
                 <%_ } _%>
-                <%_
-                for (idx in relationships) {
-                    const relationshipType = relationships[idx].relationshipType;
-                    const ownerSide = relationships[idx].ownerSide;
+            <%_ for (idx in relationships) {
+                const relationshipType = relationships[idx].relationshipType;
+                const ownerSide = relationships[idx].ownerSide;
+                if (relationshipType === 'many-to-one'
+                        || (relationshipType === 'one-to-one' && ownerSide === true)
+                        || (relationshipType === 'many-to-many' && ownerSide === true)) {
                     const relationshipName = relationships[idx].relationshipName;
                     const relationshipFieldName = relationships[idx].relationshipFieldName;
                     const relationshipFieldNamePlural = relationships[idx].relationshipFieldNamePlural;
                     const relationshipNameHumanized = relationships[idx].relationshipNameHumanized;
                     const otherEntityName = relationships[idx].otherEntityName;
                     const otherEntityStateName = relationships[idx].otherEntityStateName;
-                    const otherEntityField = relationships[idx].otherEntityField;
-                    const otherEntityFieldCapitalized = relationships[idx].otherEntityFieldCapitalized;
-                    if (relationshipType === 'many-to-one'
-                        || (relationshipType === 'one-to-one' && ownerSide === true)
-                        || (relationshipType === 'many-to-many' && ownerSide === true)) {
+                    const otherEntity = relationships[idx].otherEntity;
+                    const instance = relationshipType === 'many-to-many' ? relationshipFieldName : `${entityInstance}!.${relationshipFieldName}`;
+                    const relationshipKeys = otherEntity.primaryKey.references.length === 1 ? `${instance}!.${otherEntity.primaryKey.name}!` : `{ ${otherEntity.primaryKey.references.map(pk => `${pk.name}: ${instance}!.${pk.nameDottedAsserted}`).join(', ')} }`;
+                    const routerLink = `[routerLink]="['/${ otherEntityStateName }', ${ relationshipKeys }, 'view']"`;
+                    const label = relationships[idx].otherEntityFields.map(f => `{{ ${[instance, ...f.path.slice(1), f.field.fieldName].join('!.')} }}`).join(' , ')
                 _%>
                 <dt><span <%= jhiPrefix %>Translate="<%= i18nKeyPrefix %>.<%= relationshipName %>"><%= relationshipNameHumanized %></span></dt>
                 <dd>
                     <%_ if (otherEntityName === 'user') { _%>
                         <%_ if (relationshipType === 'many-to-many') { _%>
                     <span *ngFor="let <%= relationshipFieldName %> of <%= entityInstance %>.<%= relationshipFieldNamePlural %>; let last = last">
-                        {{ <%= relationshipFieldName %>.<%= otherEntityField %> }}{{ last ? '' : ', ' }}
+                        <%- label %>{{ last ? '' : ', ' }}
                     </span>
                         <%_ } else { _%>
-                    {{ <%= entityInstance + "." + relationshipFieldName + "?." + otherEntityField %> }}
+                    <div *ngIf="<%= entityInstance + '.' + relationshipFieldName %>">
+                        <%- routerLink %>><%- label %>
+                    </div>
                         <%_ } _%>
                     <%_ } else { _%>
                         <%_ if (relationshipType === 'many-to-many') { _%>
                     <span *ngFor="let <%= relationshipFieldName %> of <%= entityInstance %>.<%= relationshipFieldNamePlural %>; let last = last">
-                        <a [routerLink]="['/<%= otherEntityStateName %>', <%= relationshipFieldName %>?.id, 'view']">{{ <%= relationshipFieldName %>.<%= otherEntityField %> }}</a>{{ last ? '' : ', ' }}
+                        <a <%- routerLink %>><%- label %></a>{{ last ? '' : ', ' }}
                     </span>
                         <%_ } else { _%>
                     <div *ngIf="<%= entityInstance + '.' + relationshipFieldName %>">
-                        <a [routerLink]="['/<%= otherEntityStateName %>', <%= entityInstance + '.' + relationshipFieldName + '?.id' %>, 'view']">{{ <%= entityInstance + "." + relationshipFieldName + "?." + otherEntityField %> }}</a>
+                        <a <%- routerLink %>><%- label %></a>
                     </div>
                         <%_ } _%>
                     <%_ } _%>
                 </dd>
-                <%_
-                    }
+            <%_
                 }
-                _%>
+            }
+            _%>
             </dl>
 
             <button type="submit"
@@ -113,7 +117,7 @@
             <%_ if (!readOnly) { _%>
 
             <button type="button"
-                    [routerLink]="['/<%= entityUrl %>', <%= entityInstance %>.id, 'edit']"
+                    [routerLink]="['/<%= entityUrl %>', <%= entity.primaryKey.references.length === 1 ? `${entityInstance}!.${entity.primaryKey.name}` : '{ '+ entity.primaryKey.references.map(pk => `${pk.name}: ${entityInstance}!.${pk.nameDottedAsserted}`).join(', ') + ' }' %>, 'edit']"
                     class="btn btn-primary">
                 <fa-icon icon="pencil-alt"></fa-icon>&nbsp;<span <%= jhiPrefix %>Translate="entity.action.edit">Edit</span>
             </button>

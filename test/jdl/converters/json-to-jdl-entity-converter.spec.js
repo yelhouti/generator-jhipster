@@ -24,7 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const { convertEntitiesToJDL } = require('../../../jdl/converters/json-to-jdl-entity-converter');
 const UnaryOptions = require('../../../jdl/jhipster/unary-options');
-const { JPA_DERIVED_IDENTIFIER } = require('../../../jdl/jhipster/relationship-options');
+const { ID } = require('../../../jdl/jhipster/relationship-options');
 const {
     Options: { DTO, SEARCH, PAGINATION, MICROSERVICE, ANGULAR_SUFFIX, SERVICE },
     Values: {
@@ -269,11 +269,9 @@ describe('JSONToJDLEntityConverter', () => {
             });
 
             context('when parsing relationships with options', () => {
-                context('such as jpaDerivedIdentifier', () => {
+                context('such as id', () => {
                     it('should accept it', () => {
-                        expect(
-                            jdlObject.relationships.getOneToOne('OneToOne_Country{region}_Region{country}').options[JPA_DERIVED_IDENTIFIER]
-                        ).to.be.true;
+                        expect(jdlObject.relationships.getOneToOne('OneToOne_Country{region}_Region{country}').options[ID]).to.be.true;
                     });
                 });
             });

@@ -5,7 +5,7 @@
 @myCustomBinaryOption(customValue)
 @myCustomBinaryOption(customValue)
 entity A {
-  @id @multiValue(value1) @multiValue(value2) @multiValue(value3) name String
+  @toto @multiValue(value1) @multiValue(value2) @multiValue(value3) name String
   noAnnotation String
 }
 

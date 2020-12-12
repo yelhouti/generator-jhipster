@@ -156,6 +156,49 @@ function prepareFieldForTemplates(entityWithConfig, field, generator) {
         fieldTranslationKey: `${entityWithConfig.i18nKeyPrefix}.${field.fieldName}`,
     });
     const fieldType = field.fieldType;
+    if (!['Instant', 'ZonedDateTime', 'Boolean'].includes(fieldType)) {
+        entityWithConfig.fieldsIsReactAvField = true;
+    }
+
+    if (field.javadoc) {
+        entityWithConfig.haveFieldWithJavadoc = true;
+    }
+
+    if (fieldIsEnum(fieldType)) {
+        entityWithConfig.i18nToLoad.push(field.enumInstance);
+    }
+
+    if (fieldType === 'ZonedDateTime') {
+        entityWithConfig.fieldsContainZonedDateTime = true;
+        entityWithConfig.fieldsContainDate = true;
+    } else if (fieldType === 'Instant') {
+        entityWithConfig.fieldsContainInstant = true;
+        entityWithConfig.fieldsContainDate = true;
+    } else if (fieldType === 'Duration') {
+        entityWithConfig.fieldsContainDuration = true;
+    } else if (fieldType === 'LocalDate') {
+        entityWithConfig.fieldsContainLocalDate = true;
+        entityWithConfig.fieldsContainDate = true;
+    } else if (fieldType === 'BigDecimal') {
+        entityWithConfig.fieldsContainBigDecimal = true;
+    } else if (fieldType === 'UUID') {
+        entityWithConfig.fieldsContainUUID = true;
+    } else if (fieldType === 'byte[]' || fieldType === 'ByteBuffer') {
+        entityWithConfig.blobFields.push(field);
+        entityWithConfig.fieldsContainBlob = true;
+        if (field.fieldTypeBlobContent === 'image') {
+            entityWithConfig.fieldsContainImageBlob = true;
+        }
+        if (field.fieldTypeBlobContent !== 'text') {
+            entityWithConfig.fieldsContainBlobOrImage = true;
+        } else {
+            entityWithConfig.fieldsContainTextBlob = true;
+        }
+    }
+
+    if (Array.isArray(field.fieldValidateRules) && field.fieldValidateRules.length >= 1) {
+        entityWithConfig.validation = true;
+    }
 
     if (field.id && field.autoGenerate !== false) {
         const defaultGenerationType = entityWithConfig.prodDatabaseType === 'mysql' ? 'identity' : 'sequence';
@@ -169,7 +212,7 @@ function prepareFieldForTemplates(entityWithConfig, field, generator) {
     field.fieldWithContentType = (fieldType === 'byte[]' || fieldType === 'ByteBuffer') && field.fieldTypeBlobContent !== 'text';
 
     if (field.fieldNameAsDatabaseColumn === undefined) {
-        const fieldNameUnderscored = _.snakeCase(field.fieldName);
+        const fieldNameUnderscored = generator.getColumnName(field.fieldName);
         const jhiFieldNamePrefix = generator.getColumnName(entityWithConfig.jhiPrefix);
         if (isReservedTableName(fieldNameUnderscored, entityWithConfig.prodDatabaseType)) {
             if (!jhiFieldNamePrefix) {
@@ -225,7 +268,7 @@ function prepareFieldForTemplates(entityWithConfig, field, generator) {
     }
 
     field.fieldValidate = Array.isArray(field.fieldValidateRules) && field.fieldValidateRules.length >= 1;
-    field.nullable = !(field.fieldValidate === true && field.fieldValidateRules.includes('required'));
+    field.nullable = !(field.fieldValidate === true && field.fieldValidateRules.includes('required')) && !field.id;
     field.unique = field.fieldValidate === true && field.fieldValidateRules.includes('unique');
     if (field.unique) {
         field.uniqueConstraintName = generator.getUXConstraintName(
@@ -236,6 +279,9 @@ function prepareFieldForTemplates(entityWithConfig, field, generator) {
     }
     if (field.fieldValidate === true && field.fieldValidateRules.includes('maxlength')) {
         field.maxlength = field.fieldValidateRulesMaxlength || 255;
+    }
+    if (field.fieldValidate) {
+        field.validators = generator.computeValidationAnnotations(field);
     }
 
     const faker = entityWithConfig.faker;
@@ -320,7 +366,7 @@ function fieldToReference(entity, field, pathPrefix = []) {
         name: field.fieldName,
         type: field.fieldType,
         nameCapitalized: field.fieldNameCapitalized,
-        path: [...pathPrefix, field.fieldName],
+        path: [...pathPrefix, field.fieldName]
     };
 }
 
