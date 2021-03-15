@@ -383,6 +383,9 @@ function fieldToId(field) {
     get autoGenerate() {
       return !!field.autoGenerate;
     },
+    get entity() {
+      return field.entity;
+    },
   };
 }
 

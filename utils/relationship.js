@@ -112,7 +112,7 @@ function prepareRelationshipForTemplates(entityWithConfig, relationship, generat
   }
 
   relationship.relatedField = otherEntityData.fields.find(field => field.fieldName === relationship.otherEntityField);
-  if (!relationship.relatedField && !relationship.otherEntity.embedded) {
+  if (!relationship.relatedField && !relationship.otherEntity.embedded && !relationship.otherEntity.primaryKey.composite) {
     if (otherEntityData.primaryKey && otherEntityData.primaryKey.derived) {
       Object.defineProperty(relationship, 'relatedField', {
         get() {
@@ -147,6 +147,10 @@ function prepareRelationshipForTemplates(entityWithConfig, relationship, generat
     relationshipNameCapitalized: _.upperFirst(relationshipName),
     relationshipNameHumanized: _.startCase(relationshipName),
     columnName: generator.getColumnName(relationshipName),
+    columnNamePrefix:
+      generator.jhipsterConfig.backwardCompatibleDerivedName && relationship.id && relationship.relationshipType === 'one-to-one'
+        ? ''
+        : `${generator.getColumnName(relationshipName)}_`,
     otherEntityNamePlural: pluralize(otherEntityName),
     otherEntityNameCapitalized: _.upperFirst(otherEntityName),
     otherEntityTableName:
