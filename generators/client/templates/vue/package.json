@@ -64,7 +64,7 @@
     "terser-webpack-plugin": "5.1.1",
     "ts-jest": "26.5.4",
     "ts-loader": "8.1.0",
-    "tslib": "2.1.0",
+    "tslib": "2.2.0",
     "tslint-config-prettier": "1.18.0",
     "tslint-eslint-rules": "5.4.0",
     "tslint-loader": "3.6.0",
