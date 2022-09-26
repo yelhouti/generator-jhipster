@@ -116,4 +116,5 @@ module.exports = [
   'WHERE',
   'WINDOW',
   'WITH',
+  'VALUE',
 ];

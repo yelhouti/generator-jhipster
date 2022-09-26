@@ -607,6 +607,10 @@ Object {
           "renameTo": [Function],
         },
         Object {
+          "file": "package/config/MatrixVariableConfiguration.java",
+          "renameTo": [Function],
+        },
+        Object {
           "file": "package/config/WebConfigurer.java",
           "renameTo": [Function],
         },

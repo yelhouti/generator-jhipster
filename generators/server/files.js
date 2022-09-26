@@ -869,6 +869,10 @@ const baseServerFiles = {
           file: 'package/config/LoggingAspectConfiguration.java',
           renameTo: generator => `${generator.javaDir}config/LoggingAspectConfiguration.java`,
         },
+        {
+          file: 'package/config/MatrixVariableConfiguration.java',
+          renameTo: generator => `${generator.javaDir}config/MatrixVariableConfiguration.java`,
+        },
         { file: 'package/config/WebConfigurer.java', renameTo: generator => `${generator.javaDir}config/WebConfigurer.java` },
       ],
     },

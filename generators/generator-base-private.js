@@ -1343,6 +1343,13 @@ module.exports = class JHipsterBasePrivateGenerator extends Generator {
     throw new Error(`Java type ${type} does not have a random generator implemented`);
   }
 
+  getJavaValueGeneratorForPrimaryKey(primaryKey) {
+    if (primaryKey.composite) {
+      return `new ${primaryKey.type}(${primaryKey.fields.map(f => this.getJavaValueGeneratorForType(f.fieldType)).join(', ')})`;
+    }
+    return this.getJavaValueGeneratorForType(primaryKey.type);
+  }
+
   /**
    * Get a root folder name for entity
    * @param {string} clientRootFolder
