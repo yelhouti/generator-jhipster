@@ -177,7 +177,7 @@ async function writeAngularFiles() {
     sections: angularFiles,
     rootTemplatesPath: 'angular',
     transform: !application.enableTranslation ? [replaceAngularTranslations] : undefined,
-    context: { ...application, ...entity },
+    context: { ...application, ...entity, entity },
   });
 
   if (!entity.embedded) {

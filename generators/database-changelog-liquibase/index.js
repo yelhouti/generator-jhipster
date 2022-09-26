@@ -125,6 +125,10 @@ module.exports = class extends BaseBlueprintGenerator {
         // fakeDataCount must be limited to the size of required unique relationships.
         Object.defineProperty(this.entity, 'fakeDataCount', {
           get: () => {
+            const relatedRequiredEntities = this._computeRelatedRequiredEntities(this.entity);
+            if (relatedRequiredEntities.some(e => e.fakeDataCount === 0)) {
+              return 0;
+            }
             const uniqueRelationships = this.entity.relationships.filter(rel => rel.unique && (rel.relationshipRequired || rel.id));
             return _.min([this.entity.liquibaseFakeData.length, ...uniqueRelationships.map(rel => rel.otherEntity.fakeDataCount)]);
           },
@@ -410,5 +414,16 @@ module.exports = class extends BaseBlueprintGenerator {
 
     relationship.columnDataType = relationship.otherEntity.columnType;
     return relationship;
+  }
+
+  _computeRelatedRequiredEntities(entity, firstEntity = entity, computedEntities = []) {
+    const newEntities = entity.relationships
+      .filter(r => (r.relationshipRequired || r.id) && r.otherEntity !== firstEntity && !computedEntities.includes(r.otherEntity))
+      .map(r => r.otherEntity);
+    if (newEntities.length) {
+      computedEntities.push(...newEntities);
+      newEntities.forEach(e => this._computeRelatedRequiredEntities(e), firstEntity, computedEntities);
+    }
+    return computedEntities;
   }
 };

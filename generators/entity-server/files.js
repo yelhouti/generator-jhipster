@@ -64,6 +64,16 @@ const modelFiles = {
         },
       ],
     },
+    {
+      condition: generator => generator.primaryKey && generator.primaryKey.composite && !generator.primaryKey.derived,
+      path: SERVER_MAIN_SRC_DIR,
+      templates: [
+        {
+          file: 'package/domain/EntityId.java',
+          renameTo: generator => `${generator.entityAbsoluteFolder}/domain/${generator.persistClass}Id.java`,
+        },
+      ],
+    },
   ],
   modelTestFiles: [
     {
@@ -447,7 +457,8 @@ function writeFiles() {
       return this.writeFiles({
         sections: serverFiles,
         rootTemplatesPath: application.reactive ? ['reactive', ''] : undefined,
-        context: { ...application, ...entity },
+        // entity needed for recursive DTO
+        context: { ...application, ...entity, entity },
       });
     },
 

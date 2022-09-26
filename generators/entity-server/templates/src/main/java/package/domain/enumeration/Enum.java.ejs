@@ -32,8 +32,8 @@ public enum <%= enumName %> {
   enumValues.forEach((enumWithCustomValue, index) => {
     if (enumWithCustomValue.comment){  _%>
 <%= enumWithCustomValue.comment %>
-  <%_ } 
-  if (enumWithCustomValue.name === enumWithCustomValue.value) { _%>
+  <%_ }
+  if (withoutCustomValues) { _%>
     <%= enumWithCustomValue.name %><% if (index < enumValues.length - 1) { %>,<% } else { %>;<% } %>
   <%_ } else { _%>
     <%= enumWithCustomValue.name %>("<%= enumWithCustomValue.value %>")<% if (index < enumValues.length - 1) { %>,<% } else { %>;<% } %>

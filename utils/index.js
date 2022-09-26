@@ -46,6 +46,9 @@ module.exports = {
         if (key === 'derivedFields') {
           return '[derivedFields]';
         }
+        if (key === 'relationshipsPath') {
+          return '[relationshipsPath]';
+        }
         return value;
       },
       4

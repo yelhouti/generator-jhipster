@@ -164,6 +164,9 @@ Object {
   "src/main/java/com/mycompany/myapp/config/LoggingConfiguration.java": Object {
     "stateCleared": "modified",
   },
+  "src/main/java/com/mycompany/myapp/config/MatrixVariableConfiguration.java": Object {
+    "stateCleared": "modified",
+  },
   "src/main/java/com/mycompany/myapp/config/SecurityConfiguration.java": Object {
     "stateCleared": "modified",
   },
@@ -1574,6 +1577,9 @@ Object {
     "stateCleared": "modified",
   },
   "src/main/java/com/mycompany/myapp/config/LoggingConfiguration.java": Object {
+    "stateCleared": "modified",
+  },
+  "src/main/java/com/mycompany/myapp/config/MatrixVariableConfiguration.java": Object {
     "stateCleared": "modified",
   },
   "src/main/java/com/mycompany/myapp/config/SecurityConfiguration.java": Object {

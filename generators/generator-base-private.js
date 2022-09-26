@@ -1179,33 +1179,55 @@ module.exports = class JHipsterBasePrivateGenerator extends Generator {
    * @return {String} test sample
    */
   generateTypescriptTestEntity(references, additionalFields = {}) {
-    const entries = references
-      .map(reference => {
-        if (reference.field) {
-          const field = reference.field;
-          const { fieldIsEnum, fieldType, fieldTypeTimed, fieldTypeLocalDate, fieldWithContentType, fieldName, contentTypeFieldName } =
-            field;
+    return this.jsonToString(this.generateTypescriptTestEntityObject(references, additionalFields));
+  }
 
-          const fakeData = field.generateFakeData('ts');
-          if (fieldWithContentType) {
-            return [
-              [fieldName, fakeData],
-              [contentTypeFieldName, "'unknown'"],
-            ];
+  generateTypescriptTestEntityObject(references, additionalFields = {}) {
+    const relationships = references.filter(r => r.relationship).map(r => r.relationship);
+    const result = {};
+    relationships.forEach(relationship => {
+      result[relationship.relationshipName] = this.generateTypescriptTestEntityObject(
+        [...relationship.otherEntity.fields.filter(f => f.id), ...relationship.otherEntity.relationships.filter(r => r.id)].map(
+          f => f.reference
+        )
+      );
+    });
+    return Object.assign(
+      result,
+      additionalFields,
+      ...references
+        .filter(r => !r.relationship)
+        .map(reference => {
+          if (reference.field) {
+            const field = reference.field;
+            const { fieldIsEnum, fieldType, fieldTypeTimed, fieldTypeLocalDate, fieldWithContentType, fieldName, contentTypeFieldName } =
+              field;
+
+            const fakeData = field.generateFakeData('ts');
+            if (fieldWithContentType) {
+              return { [fieldName]: fakeData, [contentTypeFieldName]: "'unknown'" };
+            }
+            if (fieldIsEnum) {
+              return { [fieldName]: `${fieldType}[${fakeData}]` };
+            }
+            if (fieldTypeTimed || fieldTypeLocalDate) {
+              return { [fieldName]: `dayjs(${fakeData})` };
+            }
+            return { [fieldName]: fakeData };
           }
-          if (fieldIsEnum) {
-            return [[fieldName, `${fieldType}[${fakeData}]`]];
-          }
-          if (fieldTypeTimed || fieldTypeLocalDate) {
-            return [[fieldName, `dayjs(${fakeData})`]];
-          }
-          return [[fieldName, fakeData]];
-        }
-        return [[reference.name, this.generateTestEntityId(reference.type, 'random', false)]];
-      })
-      .flat();
+          return { [reference.name]: this.generateTestEntityId(reference.type, 'random', false) };
+        })
+    );
+  }
+
+  /**
+   * This is different from JSON.stringify as it handle values a string content
+   */
+  jsonToString(json) {
     return `{
-  ${[...entries, ...Object.entries(additionalFields)].map(([key, value]) => `${key}: ${value}`).join(',\n  ')}
+  ${[...Object.entries(json)]
+    .map(([key, value]) => `${key}: ${value && typeof value === 'object' ? this.jsonToString(value) : value}`)
+    .join(',\n  ')}
 }`;
   }
 
@@ -1341,6 +1363,13 @@ module.exports = class JHipsterBasePrivateGenerator extends Generator {
       return 'count.incrementAndGet()';
     }
     throw new Error(`Java type ${type} does not have a random generator implemented`);
+  }
+
+  getJavaValueGeneratorForPrimaryKey(primaryKey) {
+    if (primaryKey.composite) {
+      return `new ${primaryKey.type}(${primaryKey.fields.map(f => this.getJavaValueGeneratorForType(f.fieldType)).join(', ')})`;
+    }
+    return this.getJavaValueGeneratorForType(primaryKey.type);
   }
 
   /**

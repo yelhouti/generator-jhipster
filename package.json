@@ -39,6 +39,8 @@
     "./cli": "./dist/cli/index.mjs",
     "./package.json": "./package.json",
     "./generators": "./dist/lib/constants/generators.mjs",
+    "./generators/*.js": "./dist/generators/*.js",
+    "./generators/*.cjs": "./dist/generators/*.cjs",
     "./generators/*": "./dist/generators/*/index.mjs",
     "./priorities": "./dist/lib/constants/priorities.mjs",
     "./jdl/": "./dist/jdl/"

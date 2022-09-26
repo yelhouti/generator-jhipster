@@ -284,6 +284,9 @@ function prepareEntityServerForTemplates(entity) {
   } else {
     entity.entityInstanceDbSafe = entity.entityInstance;
   }
+  if (isReservedTableName(entity.entityTableName, entity.prodDatabaseType) && entity.jhiPrefix) {
+    entity.entityTableName = `${entity.jhiPrefix}_${entity.entityTableName}`;
+  }
 }
 
 function derivedPrimaryKeyProperties(primaryKey) {
@@ -381,7 +384,7 @@ function prepareEntityPrimaryKeyForTemplates(entityWithConfig, generator, enable
       // MapsId copy the id from the relationship.
       autoGenerate: true,
       get fields() {
-        return this.derivedFields;
+        return this.derivedFields.map(field => preparePrimaryKeyFields(field));
       },
       get derivedFields() {
         return relationshipId.derivedPrimaryKey.derivedFields;
@@ -406,7 +409,7 @@ function prepareEntityPrimaryKeyForTemplates(entityWithConfig, generator, enable
         return relationshipId.otherEntity.primaryKey.composite;
       },
       get ids() {
-        return this.fields.map(field => fieldToId(field));
+        return this.fields;
       },
     };
   } else {
@@ -439,7 +442,7 @@ function prepareEntityPrimaryKeyForTemplates(entityWithConfig, generator, enable
       ownFields: idFields,
       // Fields declared and inherited
       get fields() {
-        return [...this.ownFields, ...this.derivedFields];
+        return [...this.ownFields, ...this.derivedFields].map(field => preparePrimaryKeyFields(field));
       },
       get autoGenerate() {
         return this.composite ? false : this.fields[0].autoGenerate;
@@ -449,41 +452,29 @@ function prepareEntityPrimaryKeyForTemplates(entityWithConfig, generator, enable
         return this.relationships.map(rel => rel.derivedPrimaryKey.derivedFields).flat();
       },
       get ids() {
-        return this.fields.map(field => fieldToId(field));
+        return this.fields;
       },
     };
   }
   return entityWithConfig;
 }
 
-function fieldToId(field) {
-  return {
-    field,
-    get name() {
-      return field.fieldName;
-    },
-    get nameCapitalized() {
-      return field.fieldNameCapitalized;
-    },
-    get nameDotted() {
+function preparePrimaryKeyFields(field) {
+  Object.defineProperty(field, 'fieldNameDotted', {
+    get() {
       return field.derivedPath ? field.derivedPath.join('.') : field.fieldName;
     },
-    get nameDottedAsserted() {
+    enumerable: true,
+    configurable: true,
+  });
+  Object.defineProperty(field, 'fieldNameDottedAsserted', {
+    get() {
       return field.derivedPath ? `${field.derivedPath.join('!.')}!` : `${field.fieldName}!`;
     },
-    get setter() {
-      return `set${this.nameCapitalized}`;
-    },
-    get getter() {
-      return (field.fieldType === BOOLEAN ? 'is' : 'get') + this.nameCapitalized;
-    },
-    get autoGenerate() {
-      return !!field.autoGenerate;
-    },
-    get relationshipsPath() {
-      return field.relationshipsPath;
-    },
-  };
+    enumerable: true,
+    configurable: true,
+  });
+  return field;
 }
 
 /**
