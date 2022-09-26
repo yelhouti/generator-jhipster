@@ -272,6 +272,7 @@ export type PrimaryKey<F extends Field = Field> = {
   composite: boolean;
   derived: boolean;
   javaValueGenerator?: string;
+  urlIdGenerator?: string;
   javaBuildSpecification?: string;
 
   tsSampleValues?: (string | number)[];
@@ -295,8 +296,6 @@ export type PrimaryKey<F extends Field = Field> = {
 
   tsType?: string;
   autoGenerate?: boolean;
-  /** @deprecated */
-  ids: any[];
 };
 
 type BaseApplicationAddedEntityProperties = {

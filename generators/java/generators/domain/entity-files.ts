@@ -26,6 +26,13 @@ export const entityServerFiles = asWriteEntityFilesSection({
       templates: ['_entityPackage_/domain/_persistClass_.java.jhi'],
     }),
   ],
+  modelCompositeId: [
+    javaMainPackageTemplatesBlock({
+      // A derived primary key reuses the embeddable id class of the entity it derives from.
+      condition: ctx => ctx.primaryKey?.composite && !ctx.primaryKey.derived,
+      templates: ['_entityPackage_/domain/_persistClass_Id.java.jhi'],
+    }),
+  ],
   modelTestFiles: [
     javaTestPackageTemplatesBlock({
       condition: ctx => ctx.entityDomainLayer,

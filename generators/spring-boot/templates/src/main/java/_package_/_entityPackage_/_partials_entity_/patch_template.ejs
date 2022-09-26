@@ -28,7 +28,7 @@ _%>
     Optional<<%- restClass %>> result = <%- entityInstance %>Service.partialUpdate(<%- restInstance %>);
   <%_ } _%>
 <%_ } else { %>
-<%- returnPrefix %> <%- entityInstance %>Repository.findById(<%- restInstance %>.<%- primaryKey.propertySupplierName %>())
+<%- returnPrefix %> <%- entityInstance %>Repository.findById(<%- (primaryKey.composite && dtoMapstruct) ? `${mapper}.toEntity(${restInstance})` : restInstance %>.<%- primaryKey.propertySupplierName %>())
   <%_ if (dtoMapstruct || fields.filter(field => !field.id && !field.transient).length > 0) { _%>
     .map(existing<%- entityClass %> -> {
     <%_ if (dtoMapstruct) { _%>

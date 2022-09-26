@@ -38,15 +38,10 @@ const expectedField = () => ({
   entity: expect.any(Object),
 });
 
-const expectedPrimaryKeyId = () => ({
-  field: expect.any(Object),
-});
-
-const expectedPrimaryKey = (primaryKey: any) => ({
+const expectedPrimaryKey = (_primaryKey: any) => ({
   ownFields: expect.any(Array),
   fields: expect.any(Array),
   derivedFields: expect.any(Array),
-  ids: primaryKey.ids.map(expectedPrimaryKeyId),
 });
 
 const expectedEntity = (entity: any) => ({

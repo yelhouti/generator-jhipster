@@ -115,13 +115,14 @@ public class <%- persistClass %> <&- fragments.extendsSection() -&>implements Se
     private static final long serialVersionUID = 1L;
 
 <%_ if (!embedded && primaryKey.composite) { _%>
-    @Id
+    @EmbeddedId
     private <%- primaryKey.type %> <%- primaryKey.name %>;
 
 <%_ } _%>
 <&- fragments.classStaticFieldsSection() -&>
 <&- fragments.classFieldsSection() -&>
-<%_ for (const field of fields.filter(field => !field.javaInherited && !field.transient && (embedded || !field.id || !primaryKey.composite))) { _%>
+<%_ // With a composite id, the id fields stay declared on the entity as read-only columns. -%>
+<%_ for (const field of fields.filter(field => !field.javaInherited && !field.transient && (embedded || !(field.id && primaryKey.composite && primaryKey.fields.length === 1)))) { _%>
 <&- fragments.field<%- field.fieldNameCapitalized %>CustomDeclarationSection() -&>
 <&_ if (!fragments.field<%- field.fieldNameCapitalized %>CustomDeclarationSection()) { -&>
   <%_ if (field.fieldJavadoc) { _%>
@@ -188,7 +189,24 @@ public class <%- persistClass %> <&- fragments.extendsSection() -&>implements Se
 <%_ } _%>
 <&- fragments.classAdditionalRelationshipsSection() -&>
     // jhipster-needle-entity-add-field - JHipster will add fields here
-<%_ for (const field of fields.filter(field => !field.transient && (embedded || !field.id || !primaryKey.composite))) { _%>
+<%_ if (!embedded && primaryKey.composite) { _%>
+
+    public <%- primaryKey.type %> <%- primaryKey.propertySupplierName %>() {
+        return this.<%- primaryKey.name %>;
+    }
+  <%_ if (fluentMethods) { _%>
+
+    public <%- persistClass %> <%- primaryKey.name %>(<%- primaryKey.type %> <%- primaryKey.name %>) {
+        this.<%- primaryKey.propertyConsumerName %>(<%- primaryKey.name %>);
+        return this;
+    }
+  <%_ } _%>
+
+    public void <%- primaryKey.propertyConsumerName %>(<%- primaryKey.type %> <%- primaryKey.name %>) {
+        this.<%- primaryKey.name %> = <%- primaryKey.name %>;
+    }
+<%_ } _%>
+<%_ for (const field of fields.filter(field => !field.transient && (embedded || !(field.id && primaryKey.composite && primaryKey.fields.length === 1)))) { _%>
 <&- fragments.field<%- field.fieldNameCapitalized %>CustomMethodsSection() -&>
 <&_ if (!fragments.field<%- field.fieldNameCapitalized %>CustomMethodsSection()) { -&>
 

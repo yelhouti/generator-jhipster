@@ -21,6 +21,15 @@ long databaseSizeBeforeUpdate = getRepositoryCount();
 // Update the <%- entityInstance %> using partial update
 <%- persistClass %> partialUpdated<%- persistClass %> = new <%- persistClass %>();
 partialUpdated<%- persistClass %>.<%- primaryKey.propertyConsumerName %>(<%- persistInstance %>.<%- primaryKey.propertySupplierName %>());
+<%_ if (primaryKey.composite) { _%>
+  <%_ // The embedded id members are also mapped as read-only properties, they must carry the same value. -%>
+  <%_ for (const field of fields.filter(f => f.id)) { _%>
+partialUpdated<%- persistClass %>.<%- field.propertyConsumerName %>(<%- persistInstance %>.<%- field.propertySupplierName %>());
+  <%_ } _%>
+  <%_ for (const relationship of relationships.filter(r => r.id)) { _%>
+partialUpdated<%- persistClass %>.<%- relationship.propertyConsumerName %>(<%- persistInstance %>.<%- relationship.propertySupplierName %>());
+  <%_ } _%>
+<%_ } _%>
 <%_ fieldsToUpdate = fields.filter(field => field.includeField); %>
 <%_ if (fluentMethods && fieldsToUpdate.length > 0) { _%>
     partialUpdated<%- persistClass %><% for (field of fieldsToUpdate) { %>
@@ -47,9 +56,9 @@ webTestClient
 .expectStatus()
 .isOk();
 <%_ } else { _%>
-rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, partialUpdated<%- persistClass %>.<%- primaryKey.propertySupplierName %>())<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, <%- persistInstanceUrlId.replaceAll(persistInstance, `partialUpdated${persistClass}`) %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
 .contentType("application/merge-patch+json")
-.content(om.writeValueAsBytes(<%- `partialUpdated${persistClass}` %>)))
+.content(om.writeValueAsBytes(<%- (primaryKey.composite && dtoMapstruct) ? `${entityInstance}Mapper.toDto(partialUpdated${persistClass})` : `partialUpdated${persistClass}` %>)))
 .andExpect(status().isOk());
 <%_ } _%>
 

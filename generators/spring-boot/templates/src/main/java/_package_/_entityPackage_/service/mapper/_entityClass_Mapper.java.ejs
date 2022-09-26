@@ -18,7 +18,8 @@
 -%>
 package <%- entityAbsolutePackage %>.service.mapper;
 
-<%_ const getOriginalField = field => field.originalField || field;
+<%_ // relatedField is null when the other entity has a composite primary key: there is no single field to relate to.
+    const getOriginalField = field => field?.originalField ?? field;
     const uuidMapMethod = restProperties.some(property => property.relatedField?.fieldTypeUUID);
     const byteMapMethod = restProperties.some(property => property.relatedField?.fieldTypeBytes);
     const dtoRelationships = restProperties.filter(property => property.relationshipName && !property.otherEntity.embedded);
@@ -65,7 +66,7 @@ public interface <%- entityClass %>Mapper extends EntityMapper<<%- dtoClass %>, 
   <%_ let renMapAnotEnt = false; /* Render Mapping Annotation during Entity to DTO conversion? */ _%>
   <%_ for (relationship of dtoRelationships) { _%>
     <%_ renMapAnotEnt = true;
-        const qualifiedByName = relationship.otherEntity.entityInstance + this._.upperFirst(relationship.otherEntityField) + (relationship.collection ? 'Set' : '');
+        const qualifiedByName = relationship.otherEntity.entityInstance + this._.upperFirst(relationship.relatedField ? relationship.relatedField.propertyName : 'Id') + (relationship.collection ? 'Set' : '');
     _%>
     @Mapping(target = "<%- relationship.propertyName %>", source = "<%- relationship.propertyName %>", qualifiedByName="<%- qualifiedByName %>")
   <%_ } _%>
@@ -78,10 +79,20 @@ public interface <%- entityClass %>Mapper extends EntityMapper<<%- dtoClass %>, 
   <%_ } _%>
 
   <%_ let renMapAnotDto = false; /* Render Mapping Annotation during DTO to Entity conversion? */ _%>
-  <%_ if (primaryKey.ids.length > 1) { _%>
+  <%_ if (primaryKey.fields.length > 1) { _%>
     <%_ renMapAnotDto = true; _%>
-    <%_ for (const id of primaryKey.ids) { _%>
-    @Mapping(target = "id.<%- id.name %>", source = "<%- id.nameDotted %>")
+    <%_ // The embedded id is rebuilt from the properties it is spread over in the dto. -%>
+    <%_ for (const field of primaryKey.fields) { _%>
+    @Mapping(target = "id.<%- field.fieldName %>", source = "<%- field.nameDotted %>")
+    <%_ } _%>
+  <%_ } _%>
+  <%# The join columns of a relationship to a composite key entity are read-only, so the embedded id of the
+      referenced entity has to be rebuilt too. Only the directly referenced entity needs it: deeper ids are
+      never read back, the flattened embedded id of this entity already carries every column. -%>
+  <%_ for (const relationship of dtoRelationships.filter(r => r.ownerSide && r.otherEntity.primaryKey?.composite)) { _%>
+    <%_ renMapAnotDto = true; _%>
+    <%_ for (const field of relationship.otherEntity.primaryKey.fields) { _%>
+    @Mapping(target = "<%- relationship.relationshipName %>.id.<%- field.fieldName %>", source = "<%- relationship.relationshipName %>.<%- field.nameDotted %>")
     <%_ } _%>
   <%_ } _%>
   <%_ for (relationship of dtoRelationships) { _%>
@@ -98,25 +109,38 @@ public interface <%- entityClass %>Mapper extends EntityMapper<<%- dtoClass %>, 
     <%- persistClass %> toEntity(<%- dtoClass %> <%- dtoInstance %>);
   <%_ } _%>
   <%_ for (const { otherEntity, relatedField, collection } of otherEntitiesFields) { _%>
-    <%_ const mapperName = otherEntity.entityInstance + this._.upperFirst(relatedField.propertyName); _%>
+    <%_ const mapperName = otherEntity.entityInstance + this._.upperFirst(relatedField ? relatedField.propertyName : 'Id'); _%>
 
     @Named("<%- mapperName %>")
     @BeanMapping(ignoreByDefault = true)
-    <%_ for (const field of otherEntity.primaryKey.fields) { _%>
+    <%_ if (otherEntity.primaryKey.composite) { _%>
+      <%_ // Flatten the embedded id of the other entity onto the dto properties it is spread over. -%>
+      <%_ for (const field of otherEntity.primaryKey.fields) { _%>
+    @Mapping(target = "<%- field.nameDotted %>", source = "id.<%- field.fieldName %>")
+        <%_ if (field.relationshipsPath[0] && field.relationshipsPath.at(-1).relatedField) { _%>
+          <%_ const relatedFieldNameDotted = `${field.relationshipsPath.map(r => r.relationshipName).join('.')}.${field.relationshipsPath.at(-1).relatedField.fieldName}`; _%>
+          <%_ if (relatedFieldNameDotted !== field.nameDotted) { _%>
+    @Mapping(target = "<%- relatedFieldNameDotted %>", source = "<%- relatedFieldNameDotted %>")
+          <%_ } _%>
+        <%_ } _%>
+      <%_ } _%>
+    <%_ } else { _%>
+      <%_ for (const field of otherEntity.primaryKey.fields) { _%>
     @Mapping(target = "<%- field.propertyName %>", source = "<%- field.propertyName %>")
-    <%_ } _%>
-    <%_ if (!relatedField.id && relatedField.mapstructExpression) { _%>
+      <%_ } _%>
+      <%_ if (!relatedField.id && relatedField.mapstructExpression) { _%>
     @Mapping(target = "<%- relatedField.propertyName %>", expression = "<%- relatedField.mapstructExpression %>")
-    <%_ } else if (!relatedField.id) { _%>
+      <%_ } else if (!relatedField.id) { _%>
     @Mapping(target = "<%- relatedField.propertyName %>", source = "<%- relatedField.propertyName %>")
+      <%_ } _%>
     <%_ } _%>
-    <%_ if (relatedField.mapstructExpression) { _%>
+    <%_ if (relatedField?.mapstructExpression) { _%>
     <%- otherEntity.dtoClass %> toDto<%- this._.upperFirst(mapperName) %>(<%- otherEntity.persistClass %> s);
     <%_ } else { _%>
     <%- otherEntity.dtoClass %> toDto<%- this._.upperFirst(mapperName) %>(<%- otherEntity.persistClass %> <%- otherEntity.persistInstance %>);
     <%_ } _%>
     <%_ if (collection) { %>
-      <%_ const collectionMapperName = `${otherEntity.entityInstance + this._.upperFirst(relatedField.propertyName)}Set`; _%>
+      <%_ const collectionMapperName = `${mapperName}Set`; _%>
 
     @Named("<%- collectionMapperName %>")
     default Set<<%- otherEntity.dtoClass %>> toDto<%- this._.upperFirst(mapperName) %>Set(Set<<%- otherEntity.persistClass %>> <%- otherEntity.persistInstance %>) {

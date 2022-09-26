@@ -586,22 +586,50 @@ ${classProperties
 
   get postPreparingEachEntity() {
     return this.asPostPreparingEachEntityTaskGroup({
-      prepareEntity({ entity }) {
+      prepareEntity({ application, entity }) {
         const { primaryKey } = entity;
+        if (primaryKey?.composite) {
+          application.anyEntityHasCompositeId = true;
+        }
         if (primaryKey) {
-          primaryKey.javaBuildSpecification = getSpecificationBuildForType(primaryKey.type);
-          primaryKey.javaValueGenerator = getJavaValueGeneratorForType(primaryKey.type);
           for (const field of primaryKey.fields) {
             field.fieldJavaValueGenerator = getJavaValueGeneratorForType(field.fieldType);
+          }
+          if (!primaryKey.composite) {
+            primaryKey.javaBuildSpecification = getSpecificationBuildForType(primaryKey.type);
+            primaryKey.javaValueGenerator = getJavaValueGeneratorForType(primaryKey.type);
+            primaryKey.urlIdGenerator = getJavaValueGeneratorForType(primaryKey.type);
+          } else {
+            primaryKey.javaValueGenerator = `new ${primaryKey.type}(${primaryKey.fields.map(field => getJavaValueGeneratorForType(field.fieldType)).join(', ')})`;
+            primaryKey.urlIdGenerator = primaryKey.fields
+              .map(field => `"${field.fieldName}=" + ${getJavaValueGeneratorForType(field.fieldType)}`)
+              .join(' + ";" + ');
           }
         }
       },
       prepareFilters({ application, entity }) {
+        // A relationship is filtered on every field of the other entity's primary key, so that a composite
+        // key gets one filter per member instead of a single unusable `<relationship>Id` filter.
+        const relationshipFilterableProperties = entity.relationships
+          .filter(rel => rel.otherEntity.primaryKey && (!application.reactive || (rel.persistableRelationship && !rel.collection)))
+          .flatMap(relationship =>
+            relationship.otherEntity.primaryKey!.fields.map(field => {
+              const propertyJavaFilterJavaBeanName = `${relationship.relationshipNameCapitalized}${field.fieldNameCapitalized}`;
+              return {
+                // user has a String PK when using OAuth, so change relationships accordingly
+                propertyJavaFilterType:
+                  relationship.otherEntityUser && application.authenticationTypeOauth2 ? 'StringFilter' : field.propertyJavaFilterType,
+                propertyJavaFilteredType: field.propertyJavaFilteredType,
+                propertyJavaFilterName: `${relationship.relationshipFieldName}${field.fieldNameCapitalized}`,
+                propertyJavaFilterJavaBeanName,
+                propertyFilterConsumerName: `set${propertyJavaFilterJavaBeanName}`,
+                propertyFilterSupplierName: `get${propertyJavaFilterJavaBeanName}`,
+              };
+            }),
+          );
+
         mutateData(entity, {
-          entityJavaFilterableProperties: [
-            ...entity.fields.filter(field => field.filterableField),
-            ...entity.relationships.filter(rel => !application.reactive || (rel.persistableRelationship && !rel.collection)),
-          ],
+          entityJavaFilterableProperties: [...entity.fields.filter(field => field.filterableField), ...relationshipFilterableProperties],
           entityJavaCustomFilters: sortedUniqBy(entity.fields.map(field => field.propertyJavaCustomFilter).filter(Boolean), 'type'),
         });
 

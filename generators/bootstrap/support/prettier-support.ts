@@ -27,10 +27,10 @@ import type CoreGenerator from '../../base-core/index.ts';
 
 import type prettierWorker from './prettier-worker.ts';
 
-const prettierConfigMatch = new Minimatch('**/{.prettierrc**,.prettierignore}');
+const prettierConfigMatch = new Minimatch('**/{.prettierrc**,.prettierignore}', { dot: true });
 export const isPrettierConfigFilePath = (filePath: string) => prettierConfigMatch.match(filePath);
 
-const gitConfigMatch = new Minimatch('**/{.gitignore,.gitattributes}');
+const gitConfigMatch = new Minimatch('**/{.gitignore,.gitattributes}', { dot: true });
 export const isGitConfigFilePath = (filePath: string) => gitConfigMatch.match(filePath);
 
 const useTsFile = !isDistFolder();

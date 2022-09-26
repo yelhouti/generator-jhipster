@@ -306,6 +306,13 @@ export const baseServerFiles = asWriteFilesSection<SpringBootApplication>({
       renameTo: moveToJavaPackageSrcDir,
       templates: ['config/Constants.java'],
     },
+    {
+      // A composite id is passed to the api as matrix variables, which the servlet stack rejects by default.
+      condition: ctx => ctx.anyEntityHasCompositeId && !ctx.reactive,
+      path: `${SERVER_MAIN_SRC_DIR}_package_/`,
+      renameTo: moveToJavaPackageSrcDir,
+      templates: ['config/MatrixVariableConfiguration.java'],
+    },
   ],
   serverJavaDomain: [
     {

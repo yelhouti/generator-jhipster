@@ -40,12 +40,7 @@ const expectedField = (field: any) => expectedNonRecursiveObject(field, ['path',
 
 const expectedRelationship = (relationship: any) => expectedNonRecursiveObject(relationship, []);
 
-const expectedPrimaryKeyId = (id: any) => expectedNonRecursiveObject(id);
-
-const expectedPrimaryKey = (primaryKey: any) => ({
-  ...expectedNonRecursiveObject(primaryKey, ['ids']),
-  ids: primaryKey.ids.map(expectedPrimaryKeyId),
-});
+const expectedPrimaryKey = (primaryKey: any) => expectedNonRecursiveObject(primaryKey);
 
 const expectedEntity = (entity: any) => ({
   ...expectedNonRecursiveObject(entity, ['fields', 'relationships', 'primaryKey']),

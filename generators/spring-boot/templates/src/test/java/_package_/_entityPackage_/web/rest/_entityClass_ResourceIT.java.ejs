@@ -22,7 +22,7 @@ package <%- entityAbsolutePackage %>.web.rest;
 import static <%- entityAbsolutePackage %>.domain.<%- persistClass %>Asserts.*;
 import static <%- packageName %>.web.rest.TestUtil.createUpdateProxyForBean;
 <%_ const filterTestableRelationships = (reactive ? reactiveEagerRelations : relationships).filter(rel => rel.persistableRelationship && !rel.otherEntity.hasCyclicRequiredRelationship);
-    const fieldsToTest = fields.filter(field => !field.id && !field.autoGenerate && !field.transient);
+    const fieldsToTest = fields.filter(field => !field.autoGenerate && !field.transient);
     const hasUserRepository
       = (requiresDeleteAllUsers && hasRelationshipWithBuiltInUser)
       || filterTestableRelationships.some(rel => rel.otherEntity.builtInUser)
@@ -54,12 +54,19 @@ import static <%- packageName %>.web.rest.TestUtil.createUpdateProxyForBean;
     if (databaseTypeSql && !reactive) {
       transactionalAnnotation = '\n    @Transactional';
     }
+    // Composite ids are passed to the api as matrix variables (`;field=value;field2=value2`).
+    const persistInstanceUrlId = primaryKey.fields.length === 1
+      ? `${persistInstance}.${primaryKey.propertySupplierName}()`
+      : primaryKey.fields.map(field => `"${field.fieldName}=" + ${persistInstance}.${primaryKey.propertySupplierName}().get${field.fieldNameCapitalized}()`).join(' + ";" + ');
 _%>
 <%_ if (entityAbsolutePackage !== packageName) { _%>
 import <%- packageName %>.web.rest.TestUtil;
 <% } %>
 import <%- packageName %>.IntegrationTest;
 import <%- entityAbsolutePackage %>.domain.<%- persistClass %>;
+<%_ if (primaryKey.composite) { _%>
+import <%- entityAbsolutePackage %>.domain.<%- primaryKey.type %>;
+<%_ } _%>
 <%_ const imported = []; _%>
 <%_ for (relationship of relationships) { _%>
   <%_ // import entities in required relationships
@@ -193,7 +200,7 @@ import java.util.Base64;
 import java.util.stream.Stream;
 <%_ } _%>
 import java.util.List;
-<%_ if (anyFieldIsUUID || primaryKey.typeString || otherEntityPrimaryKeyTypesIncludesUUID) { _%>
+<%_ if (anyFieldIsUUID || primaryKey.typeString || primaryKey.fields.some(f => ['String', 'UUID'].includes(f.fieldType)) || otherEntityPrimaryKeyTypesIncludesUUID) { _%>
 import java.util.UUID;
 <%_ } _%>
 <%_ if (!embedded && (primaryKey.hasLong || primaryKey.hasInteger)) { _%>
@@ -252,7 +259,7 @@ import <%- entityAbsolutePackage %>.domain.enumeration.<%- field.fieldType %>;
 @AutoConfigureMockMvc
 <%_ } _%>
 @WithMockUser<% if (entityAuthority) { %>(authorities = {"<%- entityAuthority %>"})<% } %>
-class <%- entityClass %>ResourceIT {
+public class <%- entityClass %>ResourceIT {
 <%_ if (fieldsToTest.some(field => field.fieldTypeLocalTime)) { _%>
 
     private static final DateTimeFormatter LOCAL_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -577,13 +584,13 @@ class <%- entityClass %>ResourceIT {
         <%_ } else { _%>
         <%- relationship.otherEntity.persistClass %> <%- otherEntityName %>;
           <%_ if (databaseTypeSql && !reactive) { _%>
-            <%_ if (!isUsingMapsId || fieldStatus !== 'UPDATED_') { _%>
+            <%_ if (fields.some(f => f.id) || fieldStatus !== 'UPDATED_') { _%>
         if (TestUtil.findAll(em, <%- relationship.otherEntity.persistClass %>.class).isEmpty()) {
             <%_ } _%>
             <%- otherEntityName %> = <%- createEntityPrefix %><%- relationship.otherEntity.entityNameCapitalized %>ResourceIT.create<%- (fieldStatus === 'UPDATED_') ? 'Updated' : '' %>Entity(<%- relationship.otherEntity.anyRelationshipIsRequired ? 'em' : '' %>)<%- createEntityPostfix %>;
             em.persist(<%- otherEntityName %>);
             em.flush();
-            <%_ if (!isUsingMapsId || fieldStatus !== 'UPDATED_') { _%>
+            <%_ if (fields.some(f => f.id) || fieldStatus !== 'UPDATED_') { _%>
         } else {
             <%- otherEntityName %> = TestUtil.findAll(em, <%- relationship.otherEntity.persistClass %>.class).get(0);
         }
@@ -603,6 +610,14 @@ class <%- entityClass %>ResourceIT {
       <%_ } _%>
       <%_ alreadyGeneratedEntities.push(otherEntityName); _%>
     <%_ } _%>
+  <%_ } _%>
+  <%_ if (isUsingMapsId) { _%>
+      // FIXME <%- createInstance %>.<%- primaryKey.propertyConsumerName %>(<%- mapsIdAssoc.relationshipName %>.<%- mapsIdAssoc.otherEntity.primaryKey.propertySupplierName %>());
+  <%_ } _%>
+  <%_ if (primaryKey.composite) { _%>
+        <%- createInstance %>.<%- primaryKey.propertyConsumerName %>(new <%- primaryKey.type %>(
+            <%- primaryKey.fields.map(field => [createInstance, ...field.path.map(p => `get${this._.upperFirst(p)}()`)].join('.')).join(', ') %>
+        ));
   <%_ } _%>
         return <%- createInstance %>;
     }
@@ -736,7 +751,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void create<%- entityClass %>WithExistingId() throws Exception {
         // Create the <%- entityClass %> with an existing ID
-  <%_ if ((primaryKey.typeUUID && databaseTypeSql) || !primaryKey.autoGenerate) { _%>
+  <%_ if ((primaryKey.typeUUID && databaseTypeSql) || primaryKey.composite || !primaryKey.autoGenerate) { _%>
         inserted<%- persistClass %> = <%- entityInstance %>Repository.<%- saveMethod %>(<%- persistInstance %>)<%- callBlock %>;
   <%_ } else { _%>
         <%- persistInstance %>.<%- primaryKey.propertyConsumerName %>(<% if (primaryKey.typeUUID) { %>UUID.randomUUID()<% } else if (primaryKey.typeLong) { %>1L<% } else if (primaryKey.typeInteger) { %>1<% } else { %>"existing_id"<% } %>);
@@ -781,7 +796,10 @@ class <%- entityClass %>ResourceIT {
   <%_ } _%>
     }
 
-  <%_ if (databaseTypeSql && isUsingMapsId) { _%>
+  <%# Not doable with composite ids without drastically changing the logic: we would need to read the id from the url,
+     set it on the entity instead of validating it, then use the relationships to update the DB, and even then it may not
+     work since the join columns are insertable/updatable false. -%>
+  <%_ if (databaseTypeSql && isUsingMapsId && !primaryKey.composite) { _%>
     @Test<%- transactionalAnnotation %>
     void update<%- entityClass %>MapsIdAssociationWithNewId() throws Exception {
         // Initialize the database
@@ -941,7 +959,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void getAll<%- entityClassPlural %>AsStream() {
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -979,7 +997,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void getAll<%- entityClassPlural %>() <%- reactive ? '' : 'throws Exception ' %>{
         // Initialize the database
-<%_ if (!primaryKey.derived) { _%>
+<%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
   <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
   <%_ } _%>
@@ -999,10 +1017,10 @@ class <%- entityClass %>ResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
 <%_ } _%>
-<%_ if (databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) { _%>
+<%_ if ((databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) && !primaryKey.composite) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- idValue %>))<%- reactive ? '' : ')' %>
 <%_ } _%>
-<%_ for (field of fieldsToTest) { _%>
+<%_ for (field of fieldsToTest.filter(f => !f.id)) { _%>
   <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.[*].<%- field.fieldName %>ContentType").value(hasItem(<%- `DEFAULT_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE))<%- reactive ? '' : ')' %>
   <%_ } _%>
@@ -1071,7 +1089,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void get<%- entityClass %>() <%- reactive ? '' : 'throws Exception ' %>{
         // Initialize the database
-<%_ if (!primaryKey.derived) { _%>
+<%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
   <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
   <%_ } _%>
@@ -1087,14 +1105,14 @@ class <%- entityClass %>ResourceIT {
             .expectHeader().contentType(MediaType.APPLICATION_JSON)
             .expectBody()
 <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(get(ENTITY_API_URL_ID, <%- persistInstance %>.<%- primaryKey.propertySupplierName %>()))
+        rest<%- entityClass %>MockMvc.perform(get(ENTITY_API_URL_ID, <%- persistInstanceUrlId %>))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
 <%_ } _%>
-<%_ if (databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) { _%>
+<%_ if ((databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) && !primaryKey.composite) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.<%- primaryKey.name %>").value(<%- reactive ? 'is(' : '' %><%- idValue %>))
 <%_ } _%>
-<%_ for (field of fieldsToTest) { _%>
+<%_ for (field of fieldsToTest.filter(f => !f.id)) { _%>
   <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.<%- field.fieldName %>ContentType").value(<%- reactive ? 'is(' : '' %><%- `DEFAULT_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE))
   <%_ } _%>
@@ -1116,6 +1134,8 @@ class <%- entityClass %>ResourceIT {
 <%_ } _%>;
     }
 <%_ if (jpaMetamodelFiltering) { %>
+  <%# A composite id is not exposed as a single filterable property. -%>
+  <%_ if (!primaryKey.composite) { _%>
 
     @Test<%- transactionalAnnotation %>
     void get<%- entityClassPlural %>ByIdFiltering() <%- reactive ? '' : 'throws Exception ' %>{
@@ -1126,12 +1146,13 @@ class <%- entityClass %>ResourceIT {
 
         default<%- entityClass %>Filtering("<%- primaryKey.name %>.equals=" + id, "<%- primaryKey.name %>.notEquals=" + id);
 
-  <%_ if (primaryKey.typeLong || primaryKey.typeInteger) { _%>
+    <%_ if (primaryKey.typeLong || primaryKey.typeInteger) { _%>
         default<%- entityClass %>Filtering("<%- primaryKey.name %>.greaterThanOrEqual=" + id, "<%- primaryKey.name %>.greaterThan=" + id);
 
         default<%- entityClass %>Filtering("<%- primaryKey.name %>.lessThanOrEqual=" + id, "<%- primaryKey.name %>.lessThan=" + id);
-  <%_ } _%>
+    <%_ } _%>
     }
+  <%_ } _%>
 
   <%_ for (const searchBy of fieldsToTest) { /* we can't filter by all the fields. */ _%>
     <%_ if (searchBy.filterableField) { _%>
@@ -1274,9 +1295,10 @@ class <%- entityClass %>ResourceIT {
         <%- relationship.otherEntity.persistClass %> <%- relationship.relationshipFieldName %> = <%- persistInstance %>.<%- relationship.propertySupplierName %>();
     <%_ } else { _%>
       <%_ if (databaseTypeSql && !reactive) { _%>
+        <%# Persist first, in case there is a relationship to the same entity. -%>
+        em.persist(<%- persistInstance %>);
         <%- relationship.otherEntity.persistClass %> <%- relationship.relationshipFieldName %>;
         if (TestUtil.findAll(em, <%- relationship.otherEntity.persistClass %>.class).isEmpty()) {
-            <%- entityInstance %>Repository.saveAndFlush(<%- persistInstance %>);
             <%- relationship.relationshipFieldName %> = <%- createEntityPrefix %><%- relationship.otherEntity.entityNameCapitalized %>ResourceIT.createEntity(<%- relationship.otherEntity.anyRelationshipIsRequired ? 'em' : '' %>);
         } else {
             <%- relationship.relationshipFieldName %> = TestUtil.findAll(em, <%- relationship.otherEntity.persistClass %>.class).get(0);
@@ -1288,7 +1310,6 @@ class <%- entityClass %>ResourceIT {
         <%- relationship.otherEntity.persistInstance %>Repository.<%- saveMethod %>(<%- relationship.relationshipFieldName %>)<%- callBlock %>;
       <%_ } else { _%>
         em.persist(<%- relationship.relationshipFieldName %>);
-        em.flush();
       <%_ } _%>
       <%_ if (!reactive && (relationship.relationshipManyToMany || relationship.relationshipOneToMany)) { _%>
         <%- persistInstance %>.add<%- relationship.relationshipNameCapitalized %>(<%- relationship.relationshipFieldName %>);
@@ -1305,19 +1326,24 @@ class <%- entityClass %>ResourceIT {
     <%_ } _%>
     <%_ if (!reactive) { _%>
         <%- entityInstance %>Repository.saveAndFlush(<%- persistInstance %>);
-        <%- relationship.otherEntity.primaryKey.type %> <%- relationship.relationshipFieldName %>Id = <%- relationship.relationshipFieldName %>.<%- relationship.otherEntity.primaryKey.propertySupplierName %>();
     <%_ } _%>
-        // Get all the <%- entityInstance %>List where <%- relationship.relationshipFieldName %> equals to <%- relationship.relationshipFieldName %>Id
-        default<%- entityClass %>ShouldBeFound("<%- relationship.relationshipFieldName %>Id.equals=" + <%- relationship.relationshipFieldName %>Id);
-
-    <%_ const initInvalidPrimaryKey = {
+    <%_ // Relationships are filtered on each field of the other entity's primary key; test the first one.
+        const otherPrimaryKey = relationship.otherEntity.primaryKey;
+        const filterField = otherPrimaryKey.fields[0];
+        const filterName = `${relationship.relationshipFieldName}${filterField.fieldNameCapitalized}`;
+        const filterValue = `${relationship.relationshipFieldName}${otherPrimaryKey.composite ? `.${otherPrimaryKey.propertySupplierName}()` : ''}.get${filterField.fieldNameCapitalized}()`;
+        const initInvalidPrimaryKey = {
           String: '"invalid-id"',
-          Long: `(${relationship.relationshipFieldName}Id + 1)`,
+          Long: `(${filterValue} + 1)`,
+          Integer: `(${filterValue} + 1)`,
           UUID: 'UUID.randomUUID()',
-        }[relationship.otherEntity.primaryKey.type];
+        }[filterField.fieldType];
     _%>
-        // Get all the <%- entityInstance %>List where <%- relationship.relationshipFieldName %> equals to <%- initInvalidPrimaryKey %>
-        default<%- entityClass %>ShouldNotBeFound("<%- relationship.relationshipFieldName %>Id.equals=" + <%- initInvalidPrimaryKey %>);
+        // Get all the <%- entityInstance %>List where <%- filterName %> equals to <%- filterValue %>
+        default<%- entityClass %>ShouldBeFound("<%- filterName %>.equals=" + <%- filterValue %>);
+
+        // Get all the <%- entityInstance %>List where <%- filterName %> equals to <%- initInvalidPrimaryKey %>
+        default<%- entityClass %>ShouldNotBeFound("<%- filterName %>.equals=" + <%- initInvalidPrimaryKey %>);
     }
 
   <%_ } _%>
@@ -1337,7 +1363,8 @@ class <%- entityClass %>ResourceIT {
             .expectStatus().isOk()
             .expectHeader().contentType(MediaType.APPLICATION_JSON)
             .expectBody()
-            .jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- idValue %>))<% for (field of fieldsToTest) { %>
+    <%_ if (!primaryKey.composite) { _%>.jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- idValue %>))
+    <%_ } _%><% for (field of fieldsToTest.filter(f => !f.id)) { %>
       <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
             .jsonPath("$.[*].<%- field.fieldName %>ContentType").value(hasItem(<%- `DEFAULT_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE))
       <%_ } _%>
@@ -1379,7 +1406,8 @@ class <%- entityClass %>ResourceIT {
           UUID: '.toString()',
         }[primaryKey.type] || '';
     _%>
-            .andExpect(jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- persistInstance %>.<%- primaryKey.propertySupplierName %>()<%- primaryKeyConversion %>)))<% for (const field of fieldsToTest) { %>
+    <%_ if (!primaryKey.composite) { _%>.andExpect(jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- persistInstance %>.<%- primaryKey.propertySupplierName %>()<%- primaryKeyConversion %>)))
+    <%_ } _%><% for (const field of fieldsToTest.filter(f => !f.id)) { %>
       <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
             .andExpect(jsonPath("$.[*].<%- field.fieldName %>ContentType").value(hasItem(<%- `DEFAULT_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE)))
       <%_ } _%>
@@ -1452,12 +1480,12 @@ class <%- entityClass %>ResourceIT {
     void getNonExisting<%- entityClass %>() <%- reactive ? '' : 'throws Exception ' %>{
         // Get the <%- entityInstance %>
 <%_ if (reactive) { _%>
-        webTestClient.get().uri(ENTITY_API_URL_ID, <% if (primaryKey.typeInteger) { %>Integer.MAX_VALUE<% } else if (primaryKey.typeLong || primaryKey.typeString) { %>Long.MAX_VALUE<% } else if (primaryKey.typeUUID) { %>UUID.randomUUID().toString()<% } %>)
+        webTestClient.get().uri(ENTITY_API_URL_ID, <% if (primaryKey.typeInteger) { %>Integer.MAX_VALUE<% } else if (primaryKey.typeLong || primaryKey.typeString) { %>Long.MAX_VALUE<% } else if (primaryKey.typeUUID) { %>UUID.randomUUID().toString()<% } else { %><%- persistInstanceUrlId %><% } %>)
             .accept(MediaType.APPLICATION_PROBLEM_JSON)
             .exchange()
             .expectStatus().isNotFound();
 <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(get(ENTITY_API_URL_ID, <% if (primaryKey.typeInteger) { %>Integer.MAX_VALUE<% } else if (primaryKey.typeLong || primaryKey.typeString) { %>Long.MAX_VALUE<% } else if (primaryKey.typeUUID) { %>UUID.randomUUID().toString()<% } %>))
+        rest<%- entityClass %>MockMvc.perform(get(ENTITY_API_URL_ID, <% if (primaryKey.typeInteger) { %>Integer.MAX_VALUE<% } else if (primaryKey.typeLong || primaryKey.typeString) { %>Long.MAX_VALUE<% } else if (primaryKey.typeUUID) { %>UUID.randomUUID().toString()<% } else { %><%- persistInstanceUrlId %><% } %>))
             .andExpect(status().isNotFound());
 <%_ } _%>
     }
@@ -1466,7 +1494,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void putExisting<%- entityClass %>() throws Exception {
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -1485,12 +1513,12 @@ class <%- entityClass %>ResourceIT {
         // Disconnect from session so that the updates on updated<%- persistClass %> are not directly saved in db
         em.detach(updated<%- persistClass %>);
   <%_ } _%>
-  <%_ if (fluentMethods && fieldsToTest.length > 0) { _%>
-        updated<%- persistClass %><% for (field of fieldsToTest) { %>
+  <%_ if (fluentMethods && fieldsToTest.some(f => !f.id)) { _%>
+        updated<%- persistClass %><% for (field of fieldsToTest.filter(f => !f.id)) { %>
             .<%- field.fieldName %>(<%- `UPDATED_${field.fieldNameUnderscored.toUpperCase()}` %>)<% if (field.fieldTypeBinary && !field.blobContentTypeText) { %>
             .<%- field.fieldName %>ContentType(<%- `UPDATED_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE)<% } %><% } %>;
   <%_ } else { _%>
-    <%_ for (field of fieldsToTest) { _%>
+    <%_ for (field of fieldsToTest.filter(f => !f.id)) { _%>
         updated<%- persistClass %>.<%- field.propertyConsumerName %>(<%- `UPDATED_${field.fieldNameUnderscored.toUpperCase()}` %>);
       <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
         updated<%- persistClass %>.<%- field.propertyConsumerName %>ContentType(<%- `UPDATED_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE);
@@ -1508,7 +1536,7 @@ class <%- entityClass %>ResourceIT {
             .exchange()
             .expectStatus().isOk();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- dtoMapstruct ? dtoInstance : `updated${persistClass}` %>.<%- primaryKey.propertySupplierName %>())<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- persistInstanceUrlId %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .contentType(MediaType.APPLICATION_JSON)
             .content(om.writeValueAsBytes(<%- dtoMapstruct ? dtoInstance : `updated${persistClass}` %>)))
             .andExpect(status().isOk());
@@ -1560,7 +1588,7 @@ class <%- entityClass %>ResourceIT {
             .exchange()
             .expectStatus().isBadRequest();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- restInstance %>.<%- primaryKey.propertySupplierName %>())<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- persistInstanceUrlId %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .contentType(MediaType.APPLICATION_JSON)
             .content(om.writeValueAsBytes(<%- restInstance %>)))
             .andExpect(status().isBadRequest());
@@ -1593,13 +1621,13 @@ class <%- entityClass %>ResourceIT {
   <%_ } _%>
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
   <%_ if (reactive) { _%>
-        webTestClient.put().uri(ENTITY_API_URL_ID, <%- primaryKey.javaValueGenerator %>)
+        webTestClient.put().uri(ENTITY_API_URL_ID, <%- primaryKey.urlIdGenerator %>)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(om.writeValueAsBytes(<%- restInstance %>))
             .exchange()
             .expectStatus().isBadRequest();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- primaryKey.javaValueGenerator %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(put(ENTITY_API_URL_ID, <%- primaryKey.urlIdGenerator %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .contentType(MediaType.APPLICATION_JSON)
             .content(om.writeValueAsBytes(<%- restInstance %>)))
             .andExpect(status().isBadRequest());
@@ -1655,7 +1683,8 @@ class <%- entityClass %>ResourceIT {
     }
 
   <%_ const prepareFieldForPatchTest = (field, random) => {
-        const includeField = random ? faker.datatype.boolean() : true;
+        // Id fields are never patchable, they are part of the url.
+        const includeField = field.id ? false : random ? faker.datatype.boolean() : true;
         const fieldNameUnderscoreUppercased = field.fieldNameUnderscored.toUpperCase();
         const updateWithValue = includeField ? `UPDATED_${fieldNameUnderscoreUppercased}` : 'null';
         const testWithConstant = includeField ? `UPDATED_${fieldNameUnderscoreUppercased}` : `DEFAULT_${fieldNameUnderscoreUppercased}`;
@@ -1665,7 +1694,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void partialUpdate<%- entityClass %>WithPatch() throws Exception {
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -1673,7 +1702,7 @@ class <%- entityClass %>ResourceIT {
         inserted<%- persistClass %> = <%- entityInstance %>Repository.<%- saveMethod %>(<%- persistInstance %>)<%- callBlock %>;
 
   <%_ const fieldsToIncludeInPartialPatchTest = fieldsToTest.map(field => prepareFieldForPatchTest(field, true)); _%>
-<%- include('/_global_partials_entity_/it_patch_update.partial.java.ejs', { fields: fieldsToIncludeInPartialPatchTest, saveMethod, callBlock, callListBlock }) -%>
+<%- include('/_global_partials_entity_/it_patch_update.partial.java.ejs', { fields: fieldsToIncludeInPartialPatchTest, saveMethod, callBlock, callListBlock, persistInstanceUrlId }) -%>
 
         assertSameRepositoryCount(databaseSizeBeforeUpdate);
         assert<%- persistClass %>UpdatableFieldsEquals(
@@ -1685,7 +1714,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void fullUpdate<%- entityClass %>WithPatch() throws Exception {
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -1693,7 +1722,7 @@ class <%- entityClass %>ResourceIT {
         inserted<%- persistClass %> = <%- entityInstance %>Repository.<%- saveMethod %>(<%- persistInstance %>)<%- callBlock %>;
 
   <%_ const fieldsToIncludeInFullPatchTest = fieldsToTest.map(field => prepareFieldForPatchTest(field, false)); _%>
-<%- include('/_global_partials_entity_/it_patch_update.partial.java.ejs', { fields: fieldsToIncludeInFullPatchTest, saveMethod, callBlock, callListBlock }) -%>
+<%- include('/_global_partials_entity_/it_patch_update.partial.java.ejs', { fields: fieldsToIncludeInFullPatchTest, saveMethod, callBlock, callListBlock, persistInstanceUrlId }) -%>
 
         assertSameRepositoryCount(databaseSizeBeforeUpdate);
         assert<%- persistClass %>UpdatableFieldsEquals(
@@ -1723,7 +1752,7 @@ class <%- entityClass %>ResourceIT {
             .exchange()
             .expectStatus().isBadRequest();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, <%- restInstance %>.<%- primaryKey.propertySupplierName %>())<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, <%- persistInstanceUrlId %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .contentType("application/merge-patch+json")
             .content(om.writeValueAsBytes(<%- restInstance %>)))
             .andExpect(status().isBadRequest());
@@ -1755,13 +1784,13 @@ class <%- entityClass %>ResourceIT {
   <%_ } _%>
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
   <%_ if (reactive) { _%>
-        webTestClient.patch().uri(ENTITY_API_URL_ID, <%- primaryKey.javaValueGenerator %>)
+        webTestClient.patch().uri(ENTITY_API_URL_ID, <%- primaryKey.urlIdGenerator %>)
             .contentType(MediaType.valueOf("application/merge-patch+json"))
             .bodyValue(om.writeValueAsBytes(<%- restInstance %>))
             .exchange()
             .expectStatus().isBadRequest();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, <%- primaryKey.javaValueGenerator %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(patch(ENTITY_API_URL_ID, <%- primaryKey.urlIdGenerator %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .contentType("application/merge-patch+json")
             .content(om.writeValueAsBytes(<%- restInstance %>)))
             .andExpect(status().isBadRequest());
@@ -1822,7 +1851,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void delete<%- entityClass %>() <%- reactive ? '' : 'throws Exception ' %>{
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- primaryKey.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -1849,7 +1878,7 @@ class <%- entityClass %>ResourceIT {
             .exchange()
             .expectStatus().isNoContent();
   <%_ } else { _%>
-        rest<%- entityClass %>MockMvc.perform(delete(ENTITY_API_URL_ID, <%- persistInstance %>.<%- primaryKey.propertySupplierName %>()<%- (primaryKey.typeUUID && databaseTypeSql) ? '.toString()' : '' %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
+        rest<%- entityClass %>MockMvc.perform(delete(ENTITY_API_URL_ID, <%- persistInstanceUrlId %><%- (primaryKey.fields.length === 1 && primaryKey.typeUUID && databaseTypeSql) ? '.toString()' : '' %>)<%- authenticationUsesCsrf ? '.with(csrf())' : '' %>
             .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isNoContent());
   <%_ } _%>
@@ -1874,7 +1903,7 @@ class <%- entityClass %>ResourceIT {
     @Test<%- transactionalAnnotation %>
     void search<%- entityClass %>() <%- reactive ? '' : 'throws Exception ' %>{
         // Initialize the database
-  <%_ if (!primaryKey.derived) { _%>
+  <%_ if (!primaryKey.derived && !primaryKey.composite) { _%>
     <%_ for (field of primaryKey.fields.filter(f => !f.autoGenerateByRepository)) { _%>
         <%- persistInstance %>.<%- field.propertyConsumerName %>(<%- field.fieldJavaValueGenerator %>);
     <%_ } _%>
@@ -1900,10 +1929,10 @@ class <%- entityClass %>ResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
   <%_ } _%>
-  <%_ if (databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) { _%>
+  <%_ if ((databaseTypeSql || databaseTypeMongodb || databaseTypeCouchbase || databaseTypeCassandra) && !primaryKey.composite) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.[*].<%- primaryKey.name %>").value(hasItem(<%- idValue %>))<%- reactive ? '' : ')' %>
   <%_ } _%>
-  <%_ for (field of fieldsToTest) { _%>
+  <%_ for (field of fieldsToTest.filter(f => !f.id)) { _%>
     <%_ if (field.fieldTypeBinary && !field.blobContentTypeText) { _%>
             <%- reactive ? '.' : '.andExpect(' %>jsonPath("$.[*].<%- field.fieldName %>ContentType").value(hasItem(<%- `DEFAULT_${field.fieldNameUnderscored.toUpperCase()}` %>_CONTENT_TYPE))<%- reactive ? '' : ')' %>
     <%_ } _%>

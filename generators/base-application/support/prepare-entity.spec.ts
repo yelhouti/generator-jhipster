@@ -44,6 +44,9 @@ describe('generator - base-application - support - prepareEntity', () => {
             fieldType: 'CustomType',
             id: true,
             path: ['id'],
+            nameDotted: 'id',
+            nameDottedAsserted: 'id!',
+            relationshipsPath: [],
           });
         });
 
@@ -238,8 +241,11 @@ describe('generator - base-application - support - prepareEntity', () => {
 
         it('should prepare correct relationship id field', () => {
           const field = entity4.primaryKey.fields[1];
+          // A derived field reaches its value through the relationship, so the dotted names and the
+          // relationships path differ from the field it derives from.
+          const { nameDotted: _n, nameDottedAsserted: _na, relationshipsPath: _rp, ...derivedFrom } = entity1.primaryKey.fields[0];
           expect(field).toMatchObject({
-            ...entity1.primaryKey.fields[0],
+            ...derivedFrom,
             fieldName: 'otherEntity1Id',
             fieldNameCapitalized: 'OtherEntity1Id',
             columnName: 'other_entity1_id',
@@ -250,22 +256,21 @@ describe('generator - base-application - support - prepareEntity', () => {
           });
         });
 
-        it('should prepare correct relationship id ids', () => {
-          const field = entity4.primaryKey.ids[1];
+        it('should prepare correct relationship id dotted names', () => {
+          const field = entity4.primaryKey.fields[1];
           expect(field).toMatchObject({
-            name: 'otherEntity1Id',
-            nameCapitalized: 'OtherEntity1Id',
+            fieldName: 'otherEntity1Id',
+            fieldNameCapitalized: 'OtherEntity1Id',
             nameDotted: 'otherEntity1.id',
             nameDottedAsserted: 'otherEntity1!.id!',
-            setter: 'setOtherEntity1Id',
-            getter: 'getOtherEntity1Id',
           });
         });
 
         it('should prepare correct relationship id with derived primaryKey field', () => {
           const field = entity4.primaryKey.fields[2];
+          const { nameDotted: _n, nameDottedAsserted: _na, relationshipsPath: _rp, ...derivedFrom } = entity3.primaryKey.fields[0];
           expect(field).toMatchObject({
-            ...entity3.primaryKey.fields[0],
+            ...derivedFrom,
             derived: true,
             fieldName: 'otherEntity3Uuid',
             fieldNameCapitalized: 'OtherEntity3Uuid',
@@ -276,15 +281,13 @@ describe('generator - base-application - support - prepareEntity', () => {
           });
         });
 
-        it('should prepare correct relationship id with derived primaryKey field ids', () => {
-          const field = entity4.primaryKey.ids[2];
+        it('should prepare correct relationship id with derived primaryKey field dotted names', () => {
+          const field = entity4.primaryKey.fields[2];
           expect(field).toMatchObject({
-            name: 'otherEntity3Uuid',
-            nameCapitalized: 'OtherEntity3Uuid',
+            fieldName: 'otherEntity3Uuid',
+            fieldNameCapitalized: 'OtherEntity3Uuid',
             nameDotted: 'otherEntity3.uuid',
             nameDottedAsserted: 'otherEntity3!.uuid!',
-            setter: 'setOtherEntity3Uuid',
-            getter: 'getOtherEntity3Uuid',
           });
         });
       });

@@ -27,9 +27,13 @@
         header.push(`${field.columnName}_content_type`);
       }
     }
-    for (relationship of relationships.filter(relationship => relationship.liquibaseGenerateFakeData)) {
-      const { joinColumnNames } = relationship;
-      header.push(joinColumnNames[0]);
+    // Keep the same order as the loadData columns of the changelog: composite id relationships first.
+    const relationshipsToGenerate = [
+      ...relationships.filter(r => r.id && entity.primaryKey.composite),
+      ...relationships.filter(r => !r.id && r.liquibaseGenerateFakeData),
+    ];
+    for (relationship of relationshipsToGenerate) {
+      header.push(...relationship.joinColumnNames);
     }
     table.push(header);
 
@@ -56,14 +60,17 @@
         }
       }
 
-      for (relationship of relationships.filter(relationship => relationship.liquibaseGenerateFakeData)) {
+      for (relationship of relationshipsToGenerate) {
         const otherLiquibaseFakeData = relationship.otherEntity.liquibaseFakeData;
         let relationshipRow = lineNb;
         if (relationship.otherEntity.fakeDataCount > 0 && relationshipRow >= relationship.otherEntity.fakeDataCount && !relationship.unique) {
           relationshipRow = entity.faker.number.int({ min: 1, max: relationship.otherEntity.fakeDataCount }) - 1;
         }
         if (relationshipRow < relationship.otherEntity.fakeDataCount) {
-          line.push(otherLiquibaseFakeData[relationshipRow][relationship.otherEntity.primaryKey.name]);
+          // One value per field of the other entity primary key, matching joinColumnNames.
+          for (const field of relationship.otherEntity.primaryKey.fields) {
+            line.push(otherLiquibaseFakeData[relationshipRow][field.fieldName]);
+          }
         }
       }
       if (line.length === header.length) {

@@ -189,6 +189,9 @@ export type Application<E extends BaseApplicationEntity = Entity> = Command['App
     communicationSpringWebsocket: boolean;
     requiresDeleteAllUsers: boolean;
 
+    /** True when at least one entity uses a composite (multi field) primary key. */
+    anyEntityHasCompositeId?: boolean;
+
     /** @deprecated Spring Boot 3 is no longer supported, always true. */
     springBoot4: boolean;
 

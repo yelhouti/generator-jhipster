@@ -38,6 +38,8 @@ export function prepareRelationshipForDatabase({
   mutateData(relationship, {
     // DB properties
     columnName: ({ relationshipName }) => hibernateSnakeCase(relationshipName),
+    columnNamePrefix: relationship =>
+      relationship.id && relationship.relationshipType === 'one-to-one' ? '' : `${hibernateSnakeCase(relationship.relationshipName)}_`,
     shouldWriteJoinTable: ({ ownerSide, relationshipManyToMany }) => application.databaseTypeSql && relationshipManyToMany && ownerSide,
     joinTable: ({ shouldWriteJoinTable, relationshipName }) =>
       shouldWriteJoinTable ?

@@ -118,7 +118,9 @@ export const mutateValidatedField = {
     const MAX_VALUE = 2147483647;
     const isBlob = field.fieldTypeBytes;
 
-    if (field.fieldValidationRequired && !isBlob) {
+    // Auto generated fields (and composite id members mapped as read-only columns) are populated by the
+    // persistence layer, they must not be rejected as null on the incoming payload.
+    if (field.fieldValidationRequired && !field.autoGenerate && !isBlob) {
       // reactive tests need a default validation message because lookup is blocking
       validators.push(`@NotNull`);
     }

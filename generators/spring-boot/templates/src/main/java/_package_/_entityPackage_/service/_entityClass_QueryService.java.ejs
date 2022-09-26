@@ -141,10 +141,20 @@ public class <%- serviceClassName %> extends QueryService<<%- persistClass %>> {
                 ,
                 <%- field.fieldJavaBuildSpecification %>(criteria.<%- field.propertyFilterSupplierName %>(), <%- persistClass %>_.<%- field.fieldName %>)
 <%_ } _%>
-<%_ for (const relationship of relationships) { _%>
+<%_ for (const relationship of relationships.filter(rel => rel.otherEntity.primaryKey)) { _%>
+  <%_ const otherPrimaryKey = relationship.otherEntity.primaryKey; _%>
+  <%_ // The metamodel attribute is the plural one for collections. -%>
+  <%_ const metamodelFieldName = relationship.collection ? relationship.relationshipFieldNamePlural : relationship.relationshipFieldName; _%>
+  <%_ for (const field of otherPrimaryKey.fields) { _%>
+    <%_ // A composite key is reached through the embedded id attribute. -%>
+    <%_ const fieldAccessor = otherPrimaryKey.composite
+          ? `.get(${relationship.otherEntity.persistClass}_.${otherPrimaryKey.name}).get(${otherPrimaryKey.type}_.${field.fieldName})`
+          : `.get(${relationship.otherEntity.persistClass}_.${field.fieldName})`;
+    _%>
                 ,
-                buildSpecification(criteria.<%- relationship.propertyFilterSupplierName %>(),
-                    root -> root.join(<%- persistClass %>_.<%- relationship.propertyName %>, JoinType.LEFT).get(<%- relationship.otherEntity.persistClass %>_.<%- relationship.otherEntity.primaryKey.name %>))
+                buildSpecification(criteria.get<%- relationship.relationshipNameCapitalized %><%- field.fieldNameCapitalized %>(),
+                    root -> root.join(<%- persistClass %>_.<%- metamodelFieldName %>, JoinType.LEFT)<%- fieldAccessor %>)
+  <%_ } _%>
 <%_ } _%>
             ));
         }

@@ -16,9 +16,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_ if (primaryKey.composite) { _%>
+  <%# A composite id is spread over the payload properties, it is rebuilt through the mapper. -%>
+        if (!Objects.equals(<%- primaryKey.name %>, <%- entityInstance %>Mapper.toEntity(<%- restInstance %>).<%- primaryKey.propertySupplierName %>())) {
+            throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
+        }
+<%_ } else { _%>
         if (<%- restInstance %>.<%- primaryKey.propertySupplierName %>() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
         }
         if (!Objects.equals(<%- primaryKey.name %>, <%- restInstance %>.<%- primaryKey.propertySupplierName %>())) {
             throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
         }
+<%_ } _%>

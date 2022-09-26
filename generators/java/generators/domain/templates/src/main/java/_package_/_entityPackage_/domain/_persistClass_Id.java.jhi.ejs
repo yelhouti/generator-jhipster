@@ -1,0 +1,101 @@
+<%#
+ Copyright 2013-2026 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://www.jhipster.tech/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+package <%- entityAbsolutePackage %>.domain;
+
+import jakarta.persistence.*;
+<%_ if (primaryKey.fields.some(field => field.fieldValidate)) { _%>
+import jakarta.validation.constraints.*;
+<%_ } _%>
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Objects;
+<%_ if (primaryKey.fields.some(field => field.fieldTypeUUID)) { _%>
+import java.util.UUID;
+<%_ } _%>
+<%_ for (const field of primaryKey.fields.filter(field => field.fieldIsEnum)) { _%>
+import <%- entityAbsolutePackage %>.domain.enumeration.<%- field.fieldType %>;
+<%_ } _%>
+
+/**
+ * The composite primary key of the {@link <%- entityAbsoluteClass %>} entity.
+ */
+@Embeddable
+public class <%- primaryKey.type %> implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+<%_ for (const field of primaryKey.fields) { _%>
+
+  <%_ if (field.fieldIsEnum) { _%>
+    @Enumerated(EnumType.STRING)
+  <%_ } _%>
+  <%_ if (field.fieldValidate) { _%>
+    <%- field.javaFieldValidatorsPartial %>
+  <%_ } _%>
+    @Column(name = "<%- field.columnName %>"<% if (field.fieldValidationMaxLength) { %>, length = <%- field.fieldValidateRulesMaxlength %><% } %><%- field.fieldValidationRequired ? ', nullable = false' : '' %><%- field.fieldValidationUnique ? ', unique = true' : '' %>)
+    private <%- field.javaFieldType %> <%- field.fieldName %>;
+<%_ } _%>
+
+    public <%- primaryKey.type %>() {}
+
+    public <%- primaryKey.type %>(<%- primaryKey.fields.map(field => `${field.javaFieldType} ${field.fieldName}`).join(', ') %>) {
+<%_ for (const field of primaryKey.fields) { _%>
+        this.<%- field.fieldName %> = <%- field.fieldName %>;
+<%_ } _%>
+    }
+<%_ for (const field of primaryKey.fields) { _%>
+
+    public <%- field.javaFieldType %> get<%- field.fieldNameCapitalized %>() {
+        return this.<%- field.fieldName %>;
+    }
+
+    public void set<%- field.fieldNameCapitalized %>(<%- field.javaFieldType %> <%- field.fieldName %>) {
+        this.<%- field.fieldName %> = <%- field.fieldName %>;
+    }
+<%_ } _%>
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof <%- primaryKey.type %>)) {
+            return false;
+        }
+
+        <%- primaryKey.type %> <%- entityInstance %>Id = (<%- primaryKey.type %>) o;
+        return <%- primaryKey.fields.map(field => `Objects.equals(${field.fieldName}, ${entityInstance}Id.${field.fieldName})`).join('\n            && ') %>;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(<%- primaryKey.fields.map(field => field.fieldName).join(', ') %>);
+    }
+
+    // prettier-ignore
+    @Override
+    public String toString() {
+        return "<%- primaryKey.type %>{" +
+<%_ for (const [idx, field] of primaryKey.fields.entries()) { _%>
+  <%_ const isQuoted = !field.fieldTypeNumeric; _%>
+            "<%- idx === 0 ? '' : ', ' %><%- field.fieldName %>=<%- isQuoted ? "'" : '' %>" + get<%- field.fieldNameCapitalized %>() <%- isQuoted ? '+ "\'" ' : '' %>+
+<%_ } _%>
+            "}";
+    }
+}

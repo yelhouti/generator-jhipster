@@ -162,6 +162,8 @@ exports[`generator - app:bootstrap with default config should prepare EntityA 1`
       "jpaGeneratedValue": true,
       "jpaGeneratedValueIdentity": false,
       "jpaGeneratedValueSequence": false,
+      "nameDotted": "id",
+      "nameDottedAsserted": "id!",
       "nullable": true,
       "path": [
         "id",
@@ -175,6 +177,7 @@ exports[`generator - app:bootstrap with default config should prepare EntityA 1`
       "propertySupplierName": "getId",
       "propertyTranslationKey": "jhipsterApp.entityA.id",
       "readonly": true,
+      "relationshipsPath": [],
       "requiresPersistableImplementation": false,
       "tsType": "string",
       "unique": false,
@@ -182,8 +185,6 @@ exports[`generator - app:bootstrap with default config should prepare EntityA 1`
         "189bcd33-1d2c-4426-a20c-948f41d0b0a6",
         "22ccb613-6f9d-4043-9a1b-63de682c25f1",
         "19b8e903-b097-46b3-a65a-778acb6d87e9",
-        "6fe41aa2-077f-41d3-b692-28efde354481",
-        "6e13b9b6-a70d-4146-9d4c-ef8f187a1a20",
       ],
     },
     {
@@ -405,18 +406,6 @@ exports[`generator - app:bootstrap with default config should prepare EntityA 1`
     "hasLong": false,
     "hasUUID": true,
     "hibernateSnakeCaseName": "id",
-    "ids": [
-      {
-        "autoGenerate": true,
-        "field": Any<Object>,
-        "getter": "getId",
-        "name": "id",
-        "nameCapitalized": "Id",
-        "nameDotted": "id",
-        "nameDottedAsserted": "id!",
-        "setter": "setId",
-      },
-    ],
     "javaSampleValues": [
       "UUID.randomUUID()",
       "UUID.randomUUID()",
@@ -465,9 +454,13 @@ exports[`generator - app:bootstrap with default config should prepare EntityA 1`
   "service": "no",
   "skipUiGrouping": false,
   "tsKeyType": "string",
+  "tsPrimaryKeyRouteParamsSamples": [
+    "{id: '9fec3727-3421-4967-b213-ba36557ca194'}",
+    "{id: '1361f429-3817-4123-8ee3-fdf8943310b2'}",
+  ],
   "tsPrimaryKeySamples": [
-    "{id: '6fe41aa2-077f-41d3-b692-28efde354481'}",
-    "{id: '6e13b9b6-a70d-4146-9d4c-ef8f187a1a20'}",
+    "{id: '9fec3727-3421-4967-b213-ba36557ca194'}",
+    "{id: '1361f429-3817-4123-8ee3-fdf8943310b2'}",
   ],
   "tsSampleWithFullData": "{
   id: '19b8e903-b097-46b3-a65a-778acb6d87e9',
@@ -660,6 +653,8 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
       "jpaSequenceGeneratorName": "sequenceGenerator",
       "liquibaseCustomSequenceGenerator": false,
       "liquibaseSequenceGeneratorName": "sequence_generator",
+      "nameDotted": "id",
+      "nameDottedAsserted": "id!",
       "nullable": true,
       "path": [
         "id",
@@ -673,6 +668,7 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
       "propertySupplierName": "getId",
       "propertyTranslationKey": "global.field.id",
       "readonly": true,
+      "relationshipsPath": [],
       "requiresPersistableImplementation": false,
       "tsType": "number",
       "unique": false,
@@ -680,8 +676,6 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
         966,
         24814,
         5440,
-        3944,
-        6275,
       ],
     },
     {
@@ -1391,18 +1385,6 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
     "hasLong": true,
     "hasUUID": false,
     "hibernateSnakeCaseName": "id",
-    "ids": [
-      {
-        "autoGenerate": true,
-        "field": Any<Object>,
-        "getter": "getId",
-        "name": "id",
-        "nameCapitalized": "Id",
-        "nameDotted": "id",
-        "nameDottedAsserted": "id!",
-        "setter": "setId",
-      },
-    ],
     "javaSampleValues": [
       "1L",
       "2L",
@@ -1415,8 +1397,8 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
     "propertySupplierName": "getId",
     "relationships": [],
     "tsSampleValues": [
-      123,
-      456,
+      "123",
+      "456",
     ],
     "tsType": "number",
     "type": "Long",
@@ -1453,9 +1435,13 @@ exports[`generator - app:bootstrap with default config should prepare User 1`] =
   "skipDbChangelog": true,
   "skipUiGrouping": false,
   "tsKeyType": "number",
+  "tsPrimaryKeyRouteParamsSamples": [
+    "{id: 123}",
+    "{id: 456}",
+  ],
   "tsPrimaryKeySamples": [
-    "{id: 3944}",
-    "{id: 6275}",
+    "{id: 123}",
+    "{id: 456}",
   ],
   "tsSampleWithFullData": "{
   id: 5440,
@@ -1639,6 +1625,8 @@ exports[`generator - app:bootstrap with skipUserManagement should prepare Entity
       "jpaGeneratedValue": true,
       "jpaGeneratedValueIdentity": false,
       "jpaGeneratedValueSequence": false,
+      "nameDotted": "id",
+      "nameDottedAsserted": "id!",
       "nullable": true,
       "path": [
         "id",
@@ -1652,6 +1640,7 @@ exports[`generator - app:bootstrap with skipUserManagement should prepare Entity
       "propertySupplierName": "getId",
       "propertyTranslationKey": "jhipsterApp.entityA.id",
       "readonly": true,
+      "relationshipsPath": [],
       "requiresPersistableImplementation": false,
       "tsType": "string",
       "unique": false,
@@ -1659,8 +1648,6 @@ exports[`generator - app:bootstrap with skipUserManagement should prepare Entity
         "2189bcd3-31d2-4c42-9620-c948f41d0b0a",
         "22ccb613-6f9d-4043-9a1b-63de682c25f1",
         "19b8e903-b097-46b3-a65a-778acb6d87e9",
-        "6fe41aa2-077f-41d3-b692-28efde354481",
-        "6e13b9b6-a70d-4146-9d4c-ef8f187a1a20",
       ],
     },
   ],
@@ -1702,18 +1689,6 @@ exports[`generator - app:bootstrap with skipUserManagement should prepare Entity
     "hasLong": false,
     "hasUUID": true,
     "hibernateSnakeCaseName": "id",
-    "ids": [
-      {
-        "autoGenerate": true,
-        "field": Any<Object>,
-        "getter": "getId",
-        "name": "id",
-        "nameCapitalized": "Id",
-        "nameDotted": "id",
-        "nameDottedAsserted": "id!",
-        "setter": "setId",
-      },
-    ],
     "javaSampleValues": [
       "UUID.randomUUID()",
       "UUID.randomUUID()",
@@ -1762,9 +1737,13 @@ exports[`generator - app:bootstrap with skipUserManagement should prepare Entity
   "service": "no",
   "skipUiGrouping": false,
   "tsKeyType": "string",
+  "tsPrimaryKeyRouteParamsSamples": [
+    "{id: '9fec3727-3421-4967-b213-ba36557ca194'}",
+    "{id: '1361f429-3817-4123-8ee3-fdf8943310b2'}",
+  ],
   "tsPrimaryKeySamples": [
-    "{id: '6fe41aa2-077f-41d3-b692-28efde354481'}",
-    "{id: '6e13b9b6-a70d-4146-9d4c-ef8f187a1a20'}",
+    "{id: '9fec3727-3421-4967-b213-ba36557ca194'}",
+    "{id: '1361f429-3817-4123-8ee3-fdf8943310b2'}",
   ],
   "tsSampleWithFullData": "{
   id: '19b8e903-b097-46b3-a65a-778acb6d87e9'}",

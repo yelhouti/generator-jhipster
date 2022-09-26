@@ -22,6 +22,11 @@ package <%- entityAbsolutePackage %>.web.rest;
 <%_ if (!dtoMapstruct || serviceNo) { _%>
 import <%- entityAbsolutePackage %>.domain.<%- persistClass %>;
 <%_ } _%>
+<%_ if (primaryKey.composite) { _%>
+import <%- entityAbsolutePackage %>.domain.<%- primaryKey.type %>;
+import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+<%_ } _%>
 import <%- entityAbsolutePackage %>.repository.<%- entityClass %>Repository;
 <%_ if (!serviceNo) { _%>
 import <%- entityAbsolutePackage %>.service.<%- entityClass %>Service;
@@ -42,7 +47,7 @@ import <%- packageName %>.web.rest.errors.ElasticsearchExceptionMapper;
 <%_ } _%>
 <%_ if (dtoMapstruct) { _%>
 import <%- entityAbsolutePackage %>.service.dto.<%- dtoClass %>;
-  <%_ if (serviceNo) { _%>
+  <%_ if (serviceNo || primaryKey.composite) { _%>
 import <%- entityAbsolutePackage %>.service.mapper.<%- entityClass %>Mapper;
   <%_ } _%>
 <%_ } _%>
@@ -141,6 +146,11 @@ import java.util.stream.StreamSupport;
 public class <%- entityClass %>Resource {
 
     private static final Logger LOG = LoggerFactory.getLogger(<%- entityClass %>Resource.class);
+<%_ if (primaryKey.composite) { _%>
+
+    // Composite ids are received as matrix variables and converted to the embedded id type.
+    private final ObjectMapper matrixVariableMapper = new ObjectMapper();
+<%_ } _%>
 <%_ if (!readOnly) { _%>
 
     private static final String ENTITY_NAME = "<%- clientRootFolder && !skipUiGrouping ? this._.camelCase(`${clientRootFolder}${entityClass}`) : entityInstance %>";
@@ -153,6 +163,16 @@ public class <%- entityClass %>Resource {
     const mapper = `${entityInstance}Mapper`;
     const entityToDtoReference = `${mapper}::` + 'toDto';
     const idToString = primaryKey.typeString ? '' : '.toString()';
+    // For a composite id, the url/alert id is the matrix variable representation (`field=value;field2=value2`).
+    // `path` renders the id of a java variable, `alert` the same value as a string for the alert headers.
+    const urlId = {
+      path: key => primaryKey.composite
+        ? primaryKey.fields.map(f => `"${f.fieldName}=" + ${key}.${f.path.map(n => `get${this._.upperFirst(n)}()`).join('.')}`).join(' + ";" + ')
+        : `${key}.${primaryKey.propertySupplierName}()`,
+      alert: key => primaryKey.composite
+        ? primaryKey.fields.map(f => `"${f.fieldName}=" + ${key}.${f.path.map(n => `get${this._.upperFirst(n)}()`).join('.')}`).join(' + ";" + ')
+        : `${key}.${primaryKey.propertySupplierName}()${idToString}`,
+    };
 _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService, constructorName: `${entityClass}Resource`, queryService: jpaMetamodelFiltering, isUsingMapsId, mapsIdAssoc, isController: true, reactive }) -%>
 <%_ if (!readOnly) { _%>
 
@@ -169,7 +189,18 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
   <%_ } _%>
     public <%- reactive ? 'Mono<' : '' %>ResponseEntity<<%- instanceType %>><%- reactive ? '>' : '' %> create<%- entityClass %>(<%- anyPropertyHasValidation ? '@Valid ' : '' %>@RequestBody <%- instanceType %> <%- instanceName %>) throws URISyntaxException {
         LOG.debug("REST request to save <%- entityClass %> : {}", <%- instanceName %>);
-  <%_ if (primaryKey.autoGenerate) { _%>
+  <%_ if (primaryKey.composite) { _%>
+    <%# TODO handle the reactive case (switchIfEmpty/flatMap). -%>
+    <%_ if (!reactive) { _%>
+        <%- primaryKey.type %> <%- primaryKey.name %> = <%- mapper %>.toEntity(<%- instanceName %>).<%- primaryKey.propertySupplierName %>();
+        if (<%- primaryKey.name %> == null) {
+            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
+        }
+        if (<%- entityInstance %>Repository.existsById(<%- primaryKey.name %>)) {
+            throw new BadRequestAlertException("<%- entityInstance %> already exists", ENTITY_NAME, "idexists");
+        }
+    <%_ } _%>
+  <%_ } else if (primaryKey.autoGenerate) { _%>
         if (<%- instanceName %>.<%- primaryKey.propertySupplierName %>() != null) {
             throw new BadRequestAlertException("A new <%- entityInstance %> cannot already have an ID", ENTITY_NAME, "idexists");
         }
@@ -209,8 +240,8 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     <%_ } _%>
             .map(result -> {
                 try {
-                    return ResponseEntity.created(new URI("/api/<%- entityApiUrl %>/" + result.<%- primaryKey.propertySupplierName %>()))
-                        .headers(HeaderUtil.createEntityCreationAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, result.<%- primaryKey.propertySupplierName %>()<%- idToString %>))
+                    return ResponseEntity.created(new URI("/api/<%- entityApiUrl %>/" + <%- urlId.path('result') %>))
+                        .headers(HeaderUtil.createEntityCreationAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert('result') %>))
                         .body(result);
                 } catch (URISyntaxException e) {
                     throw new RuntimeException(e);
@@ -223,8 +254,8 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     <%_ if (!serviceNo) { _%>
         <%- restInstance %> = <%- entityInstance %>Service.save(<%- instanceName %>);
     <%_ } _%>
-        return ResponseEntity.created(new URI("/api/<%- entityApiUrl %>/" + <%- restInstance %>.<%- primaryKey.propertySupplierName %>()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- restInstance %>.<%- primaryKey.propertySupplierName %>()<%- idToString %>))
+        return ResponseEntity.created(new URI("/api/<%- entityApiUrl %>/" + <%- urlId.path(restInstance) %>))
+            .headers(HeaderUtil.createEntityCreationAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert(restInstance) %>))
             .body(<%- restInstance %>);
   <%_ } _%>
     }
@@ -234,7 +265,11 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     /**
      * {@code PUT  /<%- entityApiUrl %>/:<%- primaryKey.name %>} : Updates an existing <%- entityInstance %>.
      *
+  <%_ if (primaryKey.composite) { _%>
+     * @param idMap a Map representation of the id of the <%- instanceName %> to save.
+  <%_ } else { _%>
      * @param <%- primaryKey.name %> the id of the <%- instanceName %> to save.
+  <%_ } _%>
      * @param <%- instanceName %> the <%- instanceName %> to update.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated <%- instanceName %>,
      * or with status {@code 400 (Bad Request)} if the <%- instanceName %> is not valid,
@@ -246,9 +281,16 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     @PreAuthorize("<%- entitySpringPreAuthorize %>")
   <%_ } _%>
     public <%- reactive ? 'Mono<' : '' %>ResponseEntity<<%- instanceType %>><%- reactive ? '>' : '' %> update<%- entityClass %>(
+  <%_ if (primaryKey.composite) { _%>
+        @MatrixVariable(pathVar = "<%- primaryKey.name %>") Map<String, String> idMap,
+  <%_ } else { _%>
         @PathVariable(value = "<%- primaryKey.name %>", required = false) final <%- primaryKey.type %> <%- primaryKey.name %>,
+  <%_ } _%>
         <%- anyPropertyHasValidation ? '@Valid ' : '' %>@RequestBody <%- restClass %> <%- restInstance %>
     ) throws URISyntaxException {
+  <%_ if (primaryKey.composite) { _%>
+        final <%- primaryKey.type %> <%- primaryKey.name %> = matrixVariableMapper.convertValue(idMap, <%- primaryKey.type %>.class);
+  <%_ } _%>
         LOG.debug("REST request to update <%- entityClass %> : {}, {}", <%- primaryKey.name %>, <%- instanceName %>);
 <%- include('../../_partials_entity_/validate_id_template') -%>
 
@@ -278,7 +320,7 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     <%_ } _%>
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
                 .map(result -> ResponseEntity.ok()
-                    .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, result.<%- primaryKey.propertySupplierName %>()<%- idToString %>))
+                    .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert('result') %>))
                     .body(result)
                 );
         });
@@ -287,7 +329,7 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
         <%- restInstance %> = <%- entityInstance %>Service.update(<%- restInstance %>);
     <%_ } _%>
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- restInstance %>.<%- primaryKey.propertySupplierName %>()<%- idToString %>))
+            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert(restInstance) %>))
             .body(<%- restInstance %>);
   <%_ } _%>
     }
@@ -295,7 +337,11 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     /**
      * {@code PATCH  /<%- entityApiUrl %>/:<%- primaryKey.name %>} : Partial updates given fields of an existing <%- entityInstance %>, field will ignore if it is null
      *
+  <%_ if (primaryKey.composite) { _%>
+     * @param idMap a Map representation of the id of the <%- instanceName %> to save.
+  <%_ } else { _%>
      * @param <%- primaryKey.name %> the id of the <%- instanceName %> to save.
+  <%_ } _%>
      * @param <%- instanceName %> the <%- instanceName %> to update.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated <%- instanceName %>,
      * or with status {@code 400 (Bad Request)} if the <%- instanceName %> is not valid,
@@ -308,9 +354,16 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     @PreAuthorize("<%- entitySpringPreAuthorize %>")
   <%_ } _%>
     public <%- reactive ? 'Mono<' : '' %>ResponseEntity<<%- instanceType %>><%- reactive ? '>' : '' %> partialUpdate<%- entityClass %>(
+  <%_ if (primaryKey.composite) { _%>
+        @MatrixVariable(pathVar = "<%- primaryKey.name %>") Map<String, String> idMap,
+  <%_ } else { _%>
         @PathVariable(value = "<%- primaryKey.name %>", required = false) final <%- primaryKey.type %> <%- primaryKey.name %>,
+  <%_ } _%>
         <%- anyPropertyHasValidation ? '@NotNull ' : '' %>@RequestBody <%- instanceType %> <%- instanceName %>
     ) throws URISyntaxException {
+  <%_ if (primaryKey.composite) { _%>
+        final <%- primaryKey.type %> <%- primaryKey.name %> = matrixVariableMapper.convertValue(idMap, <%- primaryKey.type %>.class);
+  <%_ } _%>
         LOG.debug("REST request to partial update <%- entityClass %> partially : {}, {}", <%- primaryKey.name %>, <%- instanceName %>);
 <%- include('../../_partials_entity_/validate_id_template') -%>
 
@@ -334,14 +387,14 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
             return result
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
                 .map(res -> ResponseEntity.ok()
-                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, res.<%- primaryKey.propertySupplierName %>()<%- idToString %>))
+                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert('res') %>))
                 .body(res)
             );
         });
   <%_ } else { _%>
             return ResponseUtil.wrapOrNotFound(
                 result,
-                HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- instanceName %>.<%- primaryKey.propertySupplierName %>()<%- idToString %>)
+                HeaderUtil.createEntityUpdateAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, <%- urlId.alert(instanceName) %>)
             );
   <%_ } _%>
     }
@@ -408,7 +461,11 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     /**
      * {@code GET  /<%- entityApiUrl %>/:id} : get the "id" <%- entityInstance %>.
      *
+<%_ if (primaryKey.composite) { _%>
+     * @param idMap a Map representation of the id of the <%- instanceName %> to retrieve.
+<%_ } else { _%>
      * @param id the id of the <%- instanceName %> to retrieve.
+<%_ } _%>
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the <%- instanceName %>, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
@@ -418,7 +475,10 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
 <%_ if (entitySpringReadPreAuthorize) { _%>
     @PreAuthorize("<%- entitySpringReadPreAuthorize %>")
 <%_ } _%>
-    public <%- reactive ? 'Mono<' : '' %>ResponseEntity<<%- instanceType %>><%- reactive ? '>' : '' %> get<%- entityClass %>(@PathVariable("id") <%- primaryKey.type %> id) {
+    public <%- reactive ? 'Mono<' : '' %>ResponseEntity<<%- instanceType %>><%- reactive ? '>' : '' %> get<%- entityClass %>(<%- primaryKey.composite ? '@MatrixVariable(pathVar = "id") Map<String, String> idMap' : `@PathVariable("id") ${primaryKey.type} id` %>) {
+<%_ if (primaryKey.composite) { _%>
+        final <%- primaryKey.type %> id = matrixVariableMapper.convertValue(idMap, <%- primaryKey.type %>.class);
+<%_ } _%>
         LOG.debug("REST request to get <%- entityClass %> : {}", id);<%- include('../../_partials_entity_/get_template', { viaService, returnDirectly: false, implementsEagerLoadApis }) -%>
         return ResponseUtil.wrapOrNotFound(<%- instanceName %>);
     }
@@ -427,14 +487,21 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
     /**
      * {@code DELETE  /<%- entityApiUrl %>/:id} : delete the "id" <%- entityInstance %>.
      *
+  <%_ if (primaryKey.composite) { _%>
+     * @param idMap a Map representation of the id of the <%- instanceName %> to delete.
+  <%_ } else { _%>
      * @param id the id of the <%- instanceName %> to delete.
+  <%_ } _%>
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
   <%_ if (entitySpringPreAuthorize) { _%>
     @PreAuthorize("<%- entitySpringPreAuthorize %>")
   <%_ } _%>
-    public <%- reactive ? 'Mono<' : '' %>ResponseEntity<Void><%- reactive ? '>' : '' %> delete<%- entityClass %>(@PathVariable("id") <%- primaryKey.type %> id) {
+    public <%- reactive ? 'Mono<' : '' %>ResponseEntity<Void><%- reactive ? '>' : '' %> delete<%- entityClass %>(<%- primaryKey.composite ? '@MatrixVariable(pathVar = "id") Map<String, String> idMap' : `@PathVariable("id") ${primaryKey.type} id` %>) {
+  <%_ if (primaryKey.composite) { _%>
+        final <%- primaryKey.type %> id = matrixVariableMapper.convertValue(idMap, <%- primaryKey.type %>.class);
+  <%_ } _%>
         LOG.debug("REST request to delete <%- entityClass %> : {}", id);
 <%- include('../../_partials_entity_/delete_template', { viaService, fromResource: true }) -%>
   <%_ if (reactive) { _%>
@@ -448,7 +515,7 @@ _%><%- include('../../_partials_entity_/inject_template', { readOnly, viaService
         );
     <%_ } _%>
   <%_ } else { _%>
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, id<%- primaryKey.fields[0].fieldTypeString ? '' : '.toString()' %>)).build();
+        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, <%- enableTranslation %>, ENTITY_NAME, id<%- (!primaryKey.composite && primaryKey.fields[0].fieldTypeString) ? '' : '.toString()' %>)).build();
   <%_ } _%>
     }
 <%_ } _%>
