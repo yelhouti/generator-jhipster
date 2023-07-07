@@ -321,6 +321,8 @@ Command name can be as below
     `list`: List all sample names
     `generate`: Generate the sample
 
+Or you can run them using VSCode as explained above
+
 ## <a name="rules"></a> Coding Rules
 
 To ensure consistency throughout the source code, keep these rules in mind as you are working:
