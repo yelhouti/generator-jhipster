@@ -1349,6 +1349,9 @@ module.exports = class JHipsterBasePrivateGenerator extends Generator {
     if (primaryKeyType === TYPE_UUID) {
       return this.getJavaValueGeneratorForType(primaryKeyType);
     }
+    if (primaryKeyType === TYPE_INTEGER) {
+      return `${defaultValue}`;
+    }
     return `${defaultValue}L`;
   }
 
@@ -1360,6 +1363,9 @@ module.exports = class JHipsterBasePrivateGenerator extends Generator {
       return 'UUID.randomUUID()';
     }
     if (type === 'Long') {
+      return 'count.incrementAndGet()';
+    }
+    if (type === 'Integer') {
       return 'count.incrementAndGet()';
     }
     throw new Error(`Java type ${type} does not have a random generator implemented`);

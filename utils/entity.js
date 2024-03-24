@@ -35,7 +35,7 @@ const { CommonDBTypes } = require('../jdl/jhipster/field-types');
 const { isReservedTableName } = require('../jdl/jhipster/reserved-keywords');
 const constants = require('../generators/generator-constants');
 
-const { BOOLEAN, LONG, STRING, UUID } = CommonDBTypes;
+const { BOOLEAN, LONG, STRING, UUID, INTEGER } = CommonDBTypes;
 const { NO: NO_DTO, MAPSTRUCT } = MapperTypes;
 const { PAGINATION, INFINITE_SCROLL } = PaginationTypes;
 const { SERVICE_IMPL } = ServiceTypes;
@@ -293,6 +293,7 @@ function derivedPrimaryKeyProperties(primaryKey) {
   _.defaults(primaryKey, {
     hasUUID: primaryKey.fields && primaryKey.fields.some(field => field.fieldType === UUID),
     hasLong: primaryKey.fields && primaryKey.fields.some(field => field.fieldType === LONG),
+    hasInteger: primaryKey.fields && primaryKey.fields.some(field => field.fieldType === INTEGER),
     typeUUID: primaryKey.type === UUID,
     typeString: primaryKey.type === STRING,
     typeLong: primaryKey.type === LONG,
@@ -360,6 +361,9 @@ function prepareEntityPrimaryKeyForTemplates(entityWithConfig, generator, enable
             },
             get columnName() {
               return idCount === 1 ? field.columnName : `${generator.getColumnName(relationship.relationshipName)}_${field.columnName}`;
+            },
+            get columnType() {
+              return field.columnType;
             },
             get reference() {
               return fieldToReference(entityWithConfig, this);
